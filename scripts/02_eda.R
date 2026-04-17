@@ -188,6 +188,14 @@ message(sprintf("  Avg revenue/invoice: £%s",
                 comma(sum(df$total_amount) / n_distinct(df$invoice_no), accuracy = 0.01)))
 message("==================================\n")
 
-# So what: revenue is heavily right-skewed and concentrated — a small share of
-# customers accounts for the majority of revenue. Retention and CLV efforts
-# should prioritise this high-value segment.
+# So what: £14.7M in revenue across 5,350 UK customers over 2 years.
+# Revenue is heavily right-skewed (median £301 vs mean £439) — most transactions
+# fall in the £100–400 range, but a long tail of high-value orders pulls the mean up.
+# ~28% of customers made only 1 purchase (median 3 orders) — a major retention gap.
+# Clear Q4 seasonality each year (Sep–Nov spike driven by Christmas gifting), but
+# no strong year-over-year organic growth between 2010 and 2011.
+# Revenue concentration is stark: top 24% of customers drive 80% of revenue.
+# Note: "Manual" appears in top 10 products by revenue and likely represents
+# manual adjustments rather than a real product — worth flagging for future cleaning.
+# Implication: retention and upsell investments should target the concentrated
+# high-value base rather than broad acquisition.

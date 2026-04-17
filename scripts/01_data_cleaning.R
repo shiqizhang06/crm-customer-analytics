@@ -119,9 +119,10 @@ message(sprintf("  Unique invoices:   %s", scales::comma(n_invoices)))
 message(sprintf("  Date range:        %s to %s", date_min, date_max))
 message("======================================\n")
 
-# So what: ~%retention of raw transactions survive cleaning, representing
-# N_customers unique UK customers. This clean dataset is the foundation for
-# all downstream RFM, cohort, and CLV analyses.
+# So what: 67.9% of raw transactions (725K of 1.07M) survived cleaning, covering
+# 5,350 unique UK customers across 33,541 invoices from Dec 2009 to Dec 2011.
+# The largest single drop was missing CustomerIDs (23% of rows) — likely guest
+# checkouts — confirming the analysis is representative of registered customers only.
 
 # ---- Export ----
 
