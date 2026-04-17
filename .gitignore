@@ -47,3 +47,15 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Data files
+data/raw/*.csv
+data/raw/*.xlsx
+
+# Tableau
+*.twbx
+*.hyper
+
+# OS
+.DS_Store
+Thumbs.db
