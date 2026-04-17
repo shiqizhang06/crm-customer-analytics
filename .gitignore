@@ -51,6 +51,7 @@ rsconnect/
 # Data files
 data/raw/*.csv
 data/raw/*.xlsx
+data/processed/*.csv
 
 # Tableau
 *.twbx
