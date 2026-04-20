@@ -170,8 +170,7 @@ message("Saved: data/processed/cohort_retention.rds")
 message("Saved: data/processed/cohort_retention.csv")
 message("Saved: data/processed/cohort_retention_wide.csv")
 
-# So what: Cohort Summary: Cohorts tracked: 25, 
-# Avg M1 retention: 21.2%, Avg M3 retention: 21.7%, Avg M6 retention: 17.5%
+# So what: Cohorts tracked: 25
 # 
 # The biggest retention challenge is the M0→M1 cliff — on average 79%
 # of customers never return after their first purchase month. However, customers
