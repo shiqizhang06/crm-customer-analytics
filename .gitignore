@@ -56,6 +56,7 @@ data/processed/*.csv
 # Tableau
 *.twbx
 *.hyper
+outputs/tableau/transactions.csv
 
 # OS
 .DS_Store
