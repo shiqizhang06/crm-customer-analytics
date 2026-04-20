@@ -466,27 +466,36 @@ message("Saved: data/processed/clv_segment_summary.csv")
 # So what: 4,609 of 5,350 registered customers modelled (those with at least
 # one purchase before the Jun 2011 calibration cutoff).
 #
-# Model performance — strong across all metrics:
-# - MAE lift of 39.4% over the naive baseline means the model is substantially
-#   better than simply predicting the population mean for every customer.
-# - Correlation of 0.832 between predicted and actual holdout transactions
-#   indicates the model ranks customers reliably — critical for targeting.
-# - Aggregate error of -4.4% (predicted 6,175 vs actual 6,457 transactions)
-#   is well within acceptable range for revenue planning purposes.
-# - Top decile lift of 5.8x: the top 10% of customers by predicted CLV
-#   captured 58.4% of actual holdout revenue vs 10% expected by chance.
-#   This directly justifies using CLV scores to prioritise retention spend.
-# - P(alive) calibration plot confirms the model is well-calibrated for
-#   repeat buyers — higher P(alive) buckets return at proportionally higher
-#   rates in holdout, tracking close to the diagonal.
+# Model performance (plots 01–03):
+# Plot 01 shows predicted holdout transactions track actual closely across all
+# calibration frequency bins — MAE lift of 39.4% over the naive baseline,
+# correlation of 0.832, aggregate error of only -4.4% (6,175 predicted vs
+# 6,457 actual transactions). Plot 02 confirms the fitted parameters reproduce
+# the observed calibration frequency distribution well. One caveat from
+# plot 03: P(alive) shows systematic optimism of ~10–15pp across all bins —
+# use a 60% threshold (not 50%) when selecting targets to avoid wasting budget
+# on already-churned customers.
 #
-# CLV results:
-# Total predicted 12-month CLV: £6.32M from the existing customer base.
-# Champions (646 customers, 12%) account for £3.22M — 51% of total predicted
-# revenue. Can't Lose Them has the lowest avg P(alive) (71.8%) among active
-# segments, confirming the model sees them disengaging despite comparable CLV
-# to Loyal Customers.
+# Customer activity (plot 04):
+# The P(alive) distribution is heavily right-skewed — the majority of repeat
+# buyers show >75% probability of still being active, consistent with a 2-year
+# observation window on a seasonal gift retailer.
 #
-# Model note: BG/NBD assigns P(alive) = 1.0 to all 1,485 customers with x=0
-# (no repeat purchases in calibration). CLV predictions for these customers
-# are population-level priors, not individual signals.
+# CLV by segment (plot 05):
+# Champions dominate with median predicted 12-month CLV ~£2,300 and a long
+# tail to £10K+; total £3.22M from 646 customers (51% of the £6.32M base).
+# Can't Lose Them shows the lowest avg P(alive) (71.8%) among active segments,
+# confirming disengagement despite CLV comparable to Loyal Customers — the
+# most urgent retention priority.
+#
+# Business case (plot 06):
+# Top decile lift of 5.8x — the top 10% by predicted CLV captured 58% of
+# actual holdout revenue; top 20% captured ~71%. Recommended tiering: VIP
+# treatment for top decile, standard nurture for deciles 7–9, reactivation
+# evaluation for the rest. Combine with RFM labels for campaign design:
+# high-CLV Champions get retention offers; high-CLV At Risk get win-back
+# with ROI benchmarked against their £438 avg CLV.
+#
+# Model note: BG/NBD assigns P(alive) = 1.0 to all 1,485 customers with x=0.
+# CLV predictions for New Customers, Hibernating, and Lost segments are
+# population-level priors, not individual signals — treat accordingly.
