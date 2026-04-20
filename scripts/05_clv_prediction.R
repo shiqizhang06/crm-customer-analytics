@@ -82,22 +82,29 @@ message(sprintf("  With repeat purchases (x >= 1): %s (%.1f%%)",
                 comma(sum(cal_cbs$x >= 1)),
                 mean(cal_cbs$x >= 1) * 100))
 
-# ---- Holdout Counts (validation only) ----
+# ---- Holdout Counts + Revenue (validation only) ----
 
-holdout_counts <- elog |>
+holdout_activity <- elog |>
   filter(date > cal_end, date <= holdout_end) |>
-  count(cust, name = "x.holdout")
+  group_by(cust) |>
+  summarise(
+    x.holdout       = n(),
+    revenue.holdout = sum(daily_revenue),
+    .groups         = "drop"
+  )
 
 cal_cbs <- cal_cbs |>
-  left_join(holdout_counts, by = "cust") |>
-  mutate(x.holdout = replace_na(x.holdout, 0L))
+  left_join(holdout_activity, by = "cust") |>
+  mutate(
+    x.holdout       = replace_na(x.holdout, 0L),
+    revenue.holdout = replace_na(revenue.holdout, 0)
+  )
 
 # ---- Fit BG/NBD Model ----
 
 message("Fitting BG/NBD model...")
 
-cbs_matrix <- cal_cbs |> select(x, t.x, T.cal) |> as.matrix()
-
+cbs_matrix   <- cal_cbs |> select(x, t.x, T.cal) |> as.matrix()
 bgnbd_params <- bgnbd.EstimateParameters(cbs_matrix)
 names(bgnbd_params) <- c("r", "alpha", "a", "b")
 
@@ -108,8 +115,7 @@ message(sprintf("  Params — r: %.3f, alpha: %.3f, a: %.3f, b: %.3f",
 cal_cbs <- cal_cbs |>
   mutate(
     p_alive = mapply(
-      function(xi, tx, Tc)
-        bgnbd.PAlive(bgnbd_params, xi, tx, Tc),
+      function(xi, tx, Tc) bgnbd.PAlive(bgnbd_params, xi, tx, Tc),
       x, t.x, T.cal
     ),
     pred_holdout = mapply(
@@ -127,7 +133,7 @@ cal_cbs <- cal_cbs |>
 message(sprintf("  Avg P(alive) at calibration end: %.1f%%",
                 mean(cal_cbs$p_alive) * 100))
 
-# ---- Plot 1: BG/NBD Validation ----
+# ---- Plot 1: BG/NBD Validation — Actual vs Predicted by Frequency ----
 
 validation_summary <- cal_cbs |>
   mutate(freq_bucket = factor(pmin(x, 7L),
@@ -162,13 +168,117 @@ ggsave("outputs/figures/clv_01_bgnbd_validation.png",
        p_validation, width = 9, height = 6, dpi = 300, bg = "white")
 message("Saved: outputs/figures/clv_01_bgnbd_validation.png")
 
+# ---- Performance Metrics ----
+
+mae_model  <- mean(abs(cal_cbs$pred_holdout - cal_cbs$x.holdout))
+mae_naive  <- mean(abs(mean(cal_cbs$x.holdout) - cal_cbs$x.holdout))
+mae_lift   <- 1 - mae_model / mae_naive
+pred_cor   <- cor(cal_cbs$pred_holdout, cal_cbs$x.holdout)
+agg_actual <- sum(cal_cbs$x.holdout)
+agg_pred   <- sum(cal_cbs$pred_holdout)
+agg_error  <- (agg_pred - agg_actual) / agg_actual
+
+message("\n========== BG/NBD Performance Metrics ==========")
+message(sprintf("  MAE — model: %.3f | naive: %.3f | lift: %.1f%%",
+                mae_model, mae_naive, mae_lift * 100))
+message(sprintf("  Correlation (pred vs actual):  %.3f", pred_cor))
+message(sprintf("  Aggregate — predicted: %s | actual: %s | error: %+.1f%%",
+                comma(round(agg_pred)), comma(agg_actual), agg_error * 100))
+message("=================================================\n")
+
+# ---- Plot 2: Calibration Frequency Distribution ----
+# Compares actual distribution of repeat purchases against what the
+# fitted BG/NBD model expects — a direct test of model fit on calibration data
+
+max_x <- 7L
+
+expected_exact <- sapply(0:(max_x - 1L), function(k) {
+  sum(mapply(function(Tc) bgnbd.pmf(bgnbd_params, Tc, k), cal_cbs$T.cal))
+})
+expected_plus <- nrow(cal_cbs) - sum(expected_exact)
+
+freq_dist <- bind_rows(
+  cal_cbs |>
+    mutate(x_cap = pmin(x, max_x)) |>
+    count(x_cap) |>
+    mutate(source = "Actual"),
+  tibble(
+    x_cap  = 0:max_x,
+    n      = c(expected_exact, expected_plus),
+    source = "Model Expected"
+  )
+) |>
+  mutate(
+    x_label = factor(x_cap, labels = c(as.character(0:(max_x - 1L)), paste0(max_x, "+"))),
+    pct     = n / nrow(cal_cbs)
+  )
+
+p_freq_dist <- ggplot(freq_dist,
+                      aes(x = x_label, y = pct, fill = source)) +
+  geom_col(position = "dodge", width = 0.7, alpha = 0.9) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  scale_fill_manual(values = c("Actual" = "#08519c", "Model Expected" = "#fc8d59"),
+                    name = NULL) +
+  labs(
+    title    = "Calibration Frequency Distribution — Actual vs Model Expected",
+    subtitle = "How well the fitted BG/NBD parameters reproduce the observed purchase frequency distribution",
+    x        = "Number of Repeat Purchases in Calibration",
+    y        = "% of Customers"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "top")
+
+ggsave("outputs/figures/clv_02_freq_distribution.png",
+       p_freq_dist, width = 9, height = 6, dpi = 300, bg = "white")
+message("Saved: outputs/figures/clv_02_freq_distribution.png")
+
+# ---- Plot 3: P(alive) Calibration Check ----
+# For customers with x >= 1, group by P(alive) quintile and check what
+# fraction actually returned in holdout — well-calibrated model tracks diagonal
+
+palive_cal <- cal_cbs |>
+  filter(x >= 1) |>
+  mutate(
+    palive_bin = cut(p_alive,
+                     breaks = seq(0, 1, 0.2),
+                     labels = c("0–20%", "20–40%", "40–60%", "60–80%", "80–100%"),
+                     include.lowest = TRUE)
+  ) |>
+  group_by(palive_bin) |>
+  summarise(
+    n             = n(),
+    avg_p_alive   = mean(p_alive),
+    pct_returned  = mean(x.holdout > 0),
+    .groups       = "drop"
+  )
+
+p_palive_cal <- ggplot(palive_cal,
+                       aes(x = avg_p_alive, y = pct_returned)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed",
+              colour = "grey60", linewidth = 0.8) +
+  geom_point(aes(size = n), colour = "#08519c", alpha = 0.85) +
+  geom_text(aes(label = palive_bin), vjust = -1, size = 3.5) +
+  scale_x_continuous(labels = percent_format(), limits = c(0, 1)) +
+  scale_y_continuous(labels = percent_format(), limits = c(0, 1)) +
+  scale_size_continuous(range = c(4, 12), name = "Customers") +
+  labs(
+    title    = "P(Alive) Calibration Check",
+    subtitle = "Repeat-purchase customers only (x ≥ 1) — dashed line = perfect calibration",
+    x        = "Model P(Alive) — Group Average",
+    y        = "Actual % Returning in Holdout"
+  ) +
+  theme_minimal(base_size = 13)
+
+ggsave("outputs/figures/clv_03_palive_calibration.png",
+       p_palive_cal, width = 8, height = 7, dpi = 300, bg = "white")
+message("Saved: outputs/figures/clv_03_palive_calibration.png")
+
 # ---- Fit Gamma-Gamma Spend Model ----
 # Only customers with >= 1 repeat purchase can estimate spend parameters
 
 message("Fitting Gamma-Gamma spend model...")
 
-gg_data <- cal_cbs |> filter(x >= 1)
-
+gg_data      <- cal_cbs |> filter(x >= 1)
 spend_params <- spend.EstimateParameters(
   m.x.vector = gg_data$m.x,
   x.vector   = gg_data$x
@@ -186,8 +296,8 @@ message(sprintf("  Prior mean spend (x=0 fallback): £%.2f", prior_mean_spend))
 
 # Compute expected spend: Gamma-Gamma for x>=1, prior mean for x=0
 # (evaluated separately to avoid calling spend.expected.value with x=0)
-exp_spend_vec <- rep(prior_mean_spend, nrow(cal_cbs))
-repeat_mask   <- cal_cbs$x >= 1
+exp_spend_vec              <- rep(prior_mean_spend, nrow(cal_cbs))
+repeat_mask                <- cal_cbs$x >= 1
 exp_spend_vec[repeat_mask] <- mapply(
   function(mx, xi) spend.expected.value(spend_params, mx, xi),
   cal_cbs$m.x[repeat_mask],
@@ -216,10 +326,11 @@ clv_output <- cal_cbs |>
   select(
     customer_id = cust, segment, rfm_score, r_score, f_score, m_score,
     x, t.x, T.cal, m.x, p_alive,
-    exp_transactions_12m, exp_spend, clv_12m
+    exp_transactions_12m, exp_spend, clv_12m,
+    revenue.holdout
   )
 
-# ---- Plot 2: P(alive) Distribution ----
+# ---- Plot 4: P(alive) Distribution ----
 
 p_alive_plot <- ggplot(cal_cbs, aes(x = p_alive)) +
   geom_histogram(binwidth = 0.05, fill = "#08519c", colour = "white", alpha = 0.85) +
@@ -237,11 +348,11 @@ p_alive_plot <- ggplot(cal_cbs, aes(x = p_alive)) +
   ) +
   theme_minimal(base_size = 13)
 
-ggsave("outputs/figures/clv_02_p_alive_distribution.png",
+ggsave("outputs/figures/clv_04_p_alive_distribution.png",
        p_alive_plot, width = 9, height = 6, dpi = 300, bg = "white")
-message("Saved: outputs/figures/clv_02_p_alive_distribution.png")
+message("Saved: outputs/figures/clv_04_p_alive_distribution.png")
 
-# ---- Plot 3: CLV Distribution by RFM Segment ----
+# ---- Plot 5: CLV Distribution by RFM Segment ----
 
 segment_order <- clv_output |>
   filter(!is.na(segment)) |>
@@ -267,9 +378,61 @@ p_clv_segment <- clv_output |>
   theme_minimal(base_size = 13) +
   theme(panel.grid.major.y = element_blank())
 
-ggsave("outputs/figures/clv_03_clv_by_segment.png",
+ggsave("outputs/figures/clv_05_clv_by_segment.png",
        p_clv_segment, width = 10, height = 7, dpi = 300, bg = "white")
-message("Saved: outputs/figures/clv_03_clv_by_segment.png")
+message("Saved: outputs/figures/clv_05_clv_by_segment.png")
+
+# ---- Plot 6: Top Decile Lift ----
+# Rank customers by predicted CLV; check what share of actual holdout
+# revenue each decile captures — measures business value of the ranking
+
+decile_summary <- clv_output |>
+  mutate(clv_decile = ntile(clv_12m, 10)) |>
+  group_by(clv_decile) |>
+  summarise(
+    actual_revenue = sum(revenue.holdout),
+    n_customers    = n(),
+    .groups        = "drop"
+  ) |>
+  mutate(
+    revenue_share    = actual_revenue / sum(actual_revenue),
+    cumulative_share = cumsum(revenue_share),
+    random_share     = clv_decile / 10
+  )
+
+top_decile_lift <- decile_summary |>
+  filter(clv_decile == 10) |>
+  pull(revenue_share)
+
+message(sprintf("  Top decile captures %.1f%% of holdout revenue (%.1fx random chance)",
+                top_decile_lift * 100, top_decile_lift * 10))
+
+p_decile <- ggplot(decile_summary, aes(x = clv_decile)) +
+  geom_col(aes(y = revenue_share), fill = "#08519c", alpha = 0.85, width = 0.7) +
+  geom_line(aes(y = 1 / 10), colour = "#d94701", linetype = "dashed",
+            linewidth = 0.9) +
+  geom_text(aes(y = revenue_share,
+                label = percent(revenue_share, accuracy = 1)),
+            vjust = -0.5, size = 3.3) +
+  annotate("text", x = 9.5, y = 1 / 10 + 0.005,
+           label = "Random baseline (10%)", hjust = 1,
+           colour = "#d94701", size = 3.3) +
+  scale_x_continuous(breaks = 1:10,
+                     labels = paste0(1:10 * 10, "%")) +
+  scale_y_continuous(labels = percent_format(accuracy = 1),
+                     expand = expansion(mult = c(0, 0.12))) +
+  labs(
+    title    = "Top Decile Lift — Predicted CLV vs Actual Holdout Revenue",
+    subtitle = "Customers ranked by predicted 12-month CLV; bars show share of actual holdout revenue captured",
+    x        = "Predicted CLV Percentile (bottom → top)",
+    y        = "Share of Actual Holdout Revenue"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(panel.grid.major.x = element_blank())
+
+ggsave("outputs/figures/clv_06_top_decile_lift.png",
+       p_decile, width = 10, height = 6, dpi = 300, bg = "white")
+message("Saved: outputs/figures/clv_06_top_decile_lift.png")
 
 # ---- Segment Summary ----
 
@@ -292,41 +455,38 @@ message("=============================================\n")
 
 # ---- Export ----
 
-saveRDS(clv_output,       "data/processed/clv_predictions.rds")
-write_csv(clv_output,     "data/processed/clv_predictions.csv")
-write_csv(segment_summary,"data/processed/clv_segment_summary.csv")
+saveRDS(clv_output,        "data/processed/clv_predictions.rds")
+write_csv(clv_output,      "data/processed/clv_predictions.csv")
+write_csv(segment_summary, "data/processed/clv_segment_summary.csv")
 
 message("Saved: data/processed/clv_predictions.rds")
 message("Saved: data/processed/clv_predictions.csv")
 message("Saved: data/processed/clv_segment_summary.csv")
 
-# So what: 4,609 of 5,350 registered customers were modelled (those with at
-# least one purchase before the Jun 2011 calibration cutoff). The BG/NBD model
-# fit is solid — the validation plot shows predicted holdout transactions track
-# actual behaviour closely across all frequency buckets.
+# So what: 4,609 of 5,350 registered customers modelled (those with at least
+# one purchase before the Jun 2011 calibration cutoff).
 #
-# Total predicted 12-month CLV from the existing base: £6.32M.
-# Champions (646 customers, 12% of base) account for £3.22M — 51% of all
-# predicted revenue. This extreme concentration means losing even a small
-# fraction of Champions would materially impact the business.
+# Model performance — strong across all metrics:
+# - MAE lift of 39.4% over the naive baseline means the model is substantially
+#   better than simply predicting the population mean for every customer.
+# - Correlation of 0.832 between predicted and actual holdout transactions
+#   indicates the model ranks customers reliably — critical for targeting.
+# - Aggregate error of -4.4% (predicted 6,175 vs actual 6,457 transactions)
+#   is well within acceptable range for revenue planning purposes.
+# - Top decile lift of 5.8x: the top 10% of customers by predicted CLV
+#   captured 58.4% of actual holdout revenue vs 10% expected by chance.
+#   This directly justifies using CLV scores to prioritise retention spend.
+# - P(alive) calibration plot confirms the model is well-calibrated for
+#   repeat buyers — higher P(alive) buckets return at proportionally higher
+#   rates in holdout, tracking close to the diagonal.
 #
-# Can't Lose Them is the segment most worth acting on urgently: avg P(alive)
-# of 71.8% (vs 93.3% for Champions) confirms the model sees them actively
-# disengaging, yet their avg 12-month CLV of £1,038 is comparable to Loyal
-# Customers (£1,431). The revenue at risk from this segment is high relative
-# to its size (320 customers).
+# CLV results:
+# Total predicted 12-month CLV: £6.32M from the existing customer base.
+# Champions (646 customers, 12%) account for £3.22M — 51% of total predicted
+# revenue. Can't Lose Them has the lowest avg P(alive) (71.8%) among active
+# segments, confirming the model sees them disengaging despite comparable CLV
+# to Loyal Customers.
 #
-# At Risk customers (1,071, 23% of base) generate only £469K in predicted CLV
-# (7.4% of total) — their per-customer value (avg £438) is modest, so
-# win-back investment should be evaluated carefully against cost.
-#
-# Model note: BG/NBD assigns P(alive) = 1.0 to all 1,485 customers with zero
-# repeat purchases in calibration (x=0). This is expected model behaviour —
-# with no repeat transactions, the model cannot distinguish inactive-but-alive
-# from churned. CLV predictions for these customers (New Customers,
-# Hibernating, Lost segments) are population-level priors, not individual
-# signals, and should be treated accordingly.
-#
-# Implication: prioritise retention spend on Champions and Can't Lose Them;
-# evaluate At Risk win-back ROI against the £438 avg CLV benchmark before
-# committing budget.
+# Model note: BG/NBD assigns P(alive) = 1.0 to all 1,485 customers with x=0
+# (no repeat purchases in calibration). CLV predictions for these customers
+# are population-level priors, not individual signals.
