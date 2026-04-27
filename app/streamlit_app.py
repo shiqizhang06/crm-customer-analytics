@@ -475,9 +475,11 @@ elif page == "Segment Explorer":
         FROM customer_master
     """).iloc[0]
 
-    # cohort_retention is now segment-level; aggregate to cohort level before averaging
+    # Weighted average: ratio of total active to total cohort size across all cohorts.
+    # Unweighted mean gives equal influence to a 50-person and 500-person cohort;
+    # weighted average answers "of all customers, what fraction returned at M1?"
     m1_rate = query("""
-        SELECT AVG(CAST(n_active AS REAL) / cohort_size) AS avg_m1
+        SELECT CAST(SUM(n_active) AS REAL) / SUM(cohort_size) AS avg_m1
         FROM (
             SELECT cohort_month,
                    SUM(n_active)    AS n_active,

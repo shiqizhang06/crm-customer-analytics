@@ -122,7 +122,7 @@ message("Saved: outputs/figures/cohort_01_retention_heatmap.png")
 avg_retention <- retention_matrix |>
   filter(period_number <= 11) |>
   group_by(period_number) |>
-  summarise(avg_retention = mean(retention_rate), .groups = "drop")
+  summarise(avg_retention = sum(n_active) / sum(cohort_size), .groups = "drop")
 
 p_curve <- ggplot(avg_retention, aes(x = period_number, y = avg_retention)) +
   geom_line(colour = "#08519c", linewidth = 1.2) +
@@ -223,12 +223,14 @@ message("Saved: data/processed/cohort_retention.csv")
 message("Saved: data/processed/cohort_retention_wide.csv")
 
 # So what: Cohorts tracked: 25
-# 
-# The biggest retention challenge is the M0→M1 cliff — on average 79%
+# Retention rates are customer-weighted averages (larger cohorts contribute
+# proportionally), giving the true aggregate customer experience.
+#
+# The biggest retention challenge is the M0→M1 cliff — on average 77%
 # of customers never return after their first purchase month. However, customers
-# who do return at M1 (~21%) show a remarkably stable plateau through M6 (~19%),
-# only gradually declining to ~15% by M9+. This suggests the critical intervention
-# window is within 30 days of first purchase.
+# who do return at M1 (~23%) show a gradually declining but stable curve through
+# M6 (~22%), only falling more noticeably by M9+. This suggests the critical
+# intervention window is within 30 days of first purchase.
 #
 # The heatmap reveals a strong seasonal re-activation pattern: a visible diagonal
 # band of elevated retention (~25–35%) aligns with Q4 (Oct–Nov) each year across
