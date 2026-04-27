@@ -14,10 +14,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Design system ─────────────────────────────────────────────────────────────
-# Direction: Precision & Density  |  Foundation: Deep navy + amber
-# Font: Space Grotesk (Google Fonts)
-# Depth: Bordered cards, subtle glow on accent elements
+# ── Design tokens ─────────────────────────────────────────────────────────────
+# Direction: Precision & Density / Data & Analysis
+# Foundation: Deep navy + amber accent  |  Font: Space Grotesk
+# Depth: Bordered cards, 2px top accent strip — no shadows
 
 COLORS = {
     "bg":           "#0A1628",
@@ -35,26 +35,18 @@ COLORS = {
 
 FONT = "Space Grotesk"
 
-PLOTLY_BASE = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family=f"{FONT}, sans-serif", color=COLORS["text"], size=13),
-    margin=dict(l=16, r=16, t=40, b=16),
-    hoverlabel=dict(
-        bgcolor=COLORS["surface_2"],
-        bordercolor=COLORS["border"],
-        font=dict(family=f"{FONT}, sans-serif", color=COLORS["text"], size=12),
-    ),
-    coloraxis_colorbar=dict(
-        tickfont=dict(color=COLORS["text"]),
-        titlefont=dict(color=COLORS["text"]),
-    ),
+# ── CSS injection ─────────────────────────────────────────────────────────────
+# Font <link> and <style> injected separately — combining them in one
+# st.markdown() call causes the CSS to render as visible text in some
+# Streamlit versions.
+
+st.markdown(
+    '<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk'
+    ':wght@300;400;500;600;700&display=swap" rel="stylesheet">',
+    unsafe_allow_html=True,
 )
 
-st.markdown(f"""
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  /* ── Reset & base ── */
+_CSS = f"""
   html, body, [class*="css"] {{
     font-family: '{FONT}', sans-serif;
     background-color: {COLORS["bg"]};
@@ -62,7 +54,6 @@ st.markdown(f"""
   }}
   .stApp {{ background-color: {COLORS["bg"]}; }}
 
-  /* ── Sidebar ── */
   [data-testid="stSidebar"] {{
     background-color: {COLORS["surface"]};
     border-right: 1px solid {COLORS["border"]};
@@ -77,12 +68,10 @@ st.markdown(f"""
     color: {COLORS["accent"]} !important;
   }}
 
-  /* ── Headers ── */
   h1 {{ color: {COLORS["text"]}; font-weight: 700; font-size: 1.6rem; }}
   h2 {{ color: {COLORS["text"]}; font-weight: 600; font-size: 1.2rem; }}
   h3 {{ color: {COLORS["text_muted"]}; font-weight: 500; font-size: 1rem; }}
 
-  /* ── KPI cards ── */
   .kpi-card {{
     background: {COLORS["surface"]};
     border: 1px solid {COLORS["border"]};
@@ -119,7 +108,6 @@ st.markdown(f"""
   }}
   .kpi-accent::before {{ background: {COLORS["accent"]}; }}
 
-  /* ── Segment badge ── */
   .seg-badge {{
     display: inline-block;
     background: {COLORS["surface_2"]};
@@ -132,7 +120,6 @@ st.markdown(f"""
     letter-spacing: 0.03em;
   }}
 
-  /* ── RFM bar ── */
   .rfm-row {{
     display: flex;
     align-items: center;
@@ -165,7 +152,6 @@ st.markdown(f"""
     text-align: right;
   }}
 
-  /* ── Recommendation box ── */
   .rec-box {{
     background: {COLORS["surface"]};
     border: 1px solid {COLORS["border"]};
@@ -179,7 +165,6 @@ st.markdown(f"""
   }}
   .rec-box strong {{ color: {COLORS["accent"]}; }}
 
-  /* ── Insight box ── */
   .insight-box {{
     background: {COLORS["surface"]};
     border: 1px solid {COLORS["border"]};
@@ -191,7 +176,6 @@ st.markdown(f"""
     line-height: 1.6;
   }}
 
-  /* ── Alert ── */
   .alert-box {{
     background: rgba(248,113,113,0.08);
     border: 1px solid {COLORS["danger"]};
@@ -201,21 +185,41 @@ st.markdown(f"""
     color: {COLORS["danger"]};
   }}
 
-  /* ── Selectbox / inputs ── */
   [data-testid="stSelectbox"] > div > div {{
     background-color: {COLORS["surface"]} !important;
     border-color: {COLORS["border"]} !important;
     color: {COLORS["text"]} !important;
   }}
 
-  /* ── Divider ── */
   hr {{ border-color: {COLORS["border"]}; margin: 24px 0; }}
 
-  /* ── Hide Streamlit chrome ── */
   #MainMenu, footer, header {{ visibility: hidden; }}
   .block-container {{ padding-top: 2rem; }}
-</style>
-""", unsafe_allow_html=True)
+"""
+
+st.markdown(f"<style>{_CSS}</style>", unsafe_allow_html=True)
+
+# ── Plotly base theme ─────────────────────────────────────────────────────────
+# margin and coloraxis_colorbar are intentionally excluded from PLOTLY_BASE.
+# Passing them both here AND in update_layout() raises a duplicate-keyword error.
+# Use plot_layout(**overrides) to merge defaults with per-chart overrides.
+
+PLOTLY_BASE = dict(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family=f"{FONT}, sans-serif", color=COLORS["text"], size=13),
+    hoverlabel=dict(
+        bgcolor=COLORS["surface_2"],
+        bordercolor=COLORS["border"],
+        font=dict(family=f"{FONT}, sans-serif", color=COLORS["text"], size=12),
+    ),
+)
+
+_DEFAULT_MARGIN = dict(l=16, r=16, t=40, b=16)
+
+def plot_layout(**overrides):
+    """Return PLOTLY_BASE merged with per-chart overrides (overrides win)."""
+    return {**PLOTLY_BASE, "margin": _DEFAULT_MARGIN, **overrides}
 
 # ── Database ──────────────────────────────────────────────────────────────────
 
@@ -355,17 +359,18 @@ if page == "Customer Lookup":
                 "Individual customer profile — RFM scores, predicted CLV, and purchase history.</div>",
                 unsafe_allow_html=True)
 
-    customer_ids = query("SELECT customer_id FROM customer_master ORDER BY customer_id")["customer_id"].tolist()
-
-    selected_id = st.selectbox(
-        "Customer ID",
-        options=customer_ids,
-        index=0,
+    # Cast to INTEGER in SQL so IDs display as whole numbers (R stores as REAL in SQLite)
+    customer_ids = (
+        query("SELECT CAST(customer_id AS INTEGER) AS customer_id "
+              "FROM customer_master ORDER BY customer_id")
+        ["customer_id"].astype(int).tolist()
     )
 
+    selected_id = st.selectbox("Customer ID", options=customer_ids, index=0)
+
     customer = query(
-        "SELECT * FROM customer_master WHERE customer_id = ?",
-        params=[selected_id]
+        "SELECT * FROM customer_master WHERE CAST(customer_id AS INTEGER) = ?",
+        params=[int(selected_id)],
     )
 
     if customer.empty:
@@ -375,7 +380,6 @@ if page == "Customer Lookup":
     c = customer.iloc[0]
     segment = c["segment"]
 
-    # Header row
     col_id, col_seg = st.columns([1, 3])
     with col_id:
         st.markdown(f"""
@@ -390,10 +394,9 @@ if page == "Customer Lookup":
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # KPI cards
-    clv_val   = fmt_gbp(c["clv_12m"])
-    decile    = f"Top {int(c['clv_decile']) * 10}%" if pd.notna(c["clv_decile"]) else "N/A"
-    palive    = fmt_pct(c["p_alive"])
+    clv_val = fmt_gbp(c["clv_12m"])
+    decile  = f"Top {int(c['clv_decile']) * 10}%" if pd.notna(c["clv_decile"]) else "N/A"
+    palive  = fmt_pct(c["p_alive"])
 
     col1, col2, col3, col4 = st.columns(4)
     col1.markdown(kpi_card("Total Revenue", fmt_gbp(c["total_revenue"]),
@@ -404,7 +407,6 @@ if page == "Customer Lookup":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # RFM scores + purchase history
     col_rfm, col_chart = st.columns([1, 2])
 
     with col_rfm:
@@ -426,14 +428,19 @@ if page == "Customer Lookup":
         """, unsafe_allow_html=True)
 
     with col_chart:
+        # invoice_date is stored as R's integer day count (days since 1970-01-01).
+        # SQLite's strftime() treats bare integers as Julian Day Numbers, producing
+        # nonsense years. Convert via date('1970-01-01', '+N days') first.
         history = query("""
-            SELECT strftime('%Y-%m', invoice_date) AS month,
-                   SUM(total_amount)               AS revenue
+            SELECT strftime('%Y-%m',
+                       date('1970-01-01', '+' || CAST(invoice_date AS INTEGER) || ' days')
+                   ) AS month,
+                   SUM(total_amount) AS revenue
             FROM retail_clean
-            WHERE customer_id = ?
+            WHERE CAST(customer_id AS INTEGER) = ?
             GROUP BY month
             ORDER BY month
-        """, params=[selected_id])
+        """, params=[int(selected_id)])
 
         if not history.empty:
             fig = px.bar(
@@ -442,18 +449,16 @@ if page == "Customer Lookup":
                 title="Monthly Purchase Revenue",
             )
             fig.update_layout(
-                **PLOTLY_BASE,
+                **plot_layout(),
                 xaxis=dict(showgrid=False, title=None,
                            tickfont=dict(color=COLORS["text_muted"])),
                 yaxis=dict(showgrid=True, gridcolor=COLORS["border"],
-                           title="Revenue (£)",
-                           tickprefix="£",
+                           title="Revenue (£)", tickprefix="£",
                            tickfont=dict(color=COLORS["text_muted"])),
             )
             fig.update_traces(marker_line_width=0)
             st.plotly_chart(fig, use_container_width=True)
 
-    # Recommendation
     action = SEGMENT_ACTIONS.get(segment, "No recommendation available for this segment.")
     st.markdown(f'<div class="rec-box"><strong>Recommended action ({segment}):</strong> {action}</div>',
                 unsafe_allow_html=True)
@@ -463,19 +468,24 @@ if page == "Customer Lookup":
 
 elif page == "Segment Explorer":
 
-    # Top KPIs
     totals = query("""
-        SELECT
-          COUNT(*)                      AS total_customers,
-          SUM(total_revenue)            AS total_revenue,
-          AVG(clv_12m)                  AS avg_clv
+        SELECT COUNT(*)         AS total_customers,
+               SUM(total_revenue) AS total_revenue,
+               AVG(clv_12m)      AS avg_clv
         FROM customer_master
     """).iloc[0]
 
+    # cohort_retention is now segment-level; aggregate to cohort level before averaging
     m1_rate = query("""
-        SELECT AVG(retention_rate) AS avg_m1
-        FROM cohort_retention
-        WHERE period_number = 1
+        SELECT AVG(CAST(n_active AS REAL) / cohort_size) AS avg_m1
+        FROM (
+            SELECT cohort_month,
+                   SUM(n_active)    AS n_active,
+                   SUM(cohort_size) AS cohort_size
+            FROM cohort_retention
+            WHERE period_number = 1
+            GROUP BY cohort_month
+        )
     """).iloc[0]["avg_m1"]
 
     st.markdown("## Segment Explorer")
@@ -495,7 +505,6 @@ elif page == "Segment Explorer":
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # Segment selector
     segments = query("SELECT DISTINCT segment FROM customer_master ORDER BY segment")["segment"].tolist()
     selected_seg = st.selectbox("Select segment", options=segments)
 
@@ -525,7 +534,6 @@ elif page == "Segment Explorer":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Comparison charts
     all_seg = query("SELECT * FROM segment_summary ORDER BY n_customers DESC")
 
     col_left, col_right = st.columns(2)
@@ -542,11 +550,10 @@ elif page == "Segment Explorer":
             ],
         )
         fig_bar.update_layout(
-            **PLOTLY_BASE,
+            **plot_layout(),
             xaxis=dict(showgrid=True, gridcolor=COLORS["border"],
                        title="Customers", tickfont=dict(color=COLORS["text_muted"])),
-            yaxis=dict(showgrid=False, title=None,
-                       tickfont=dict(color=COLORS["text"])),
+            yaxis=dict(showgrid=False, title=None, tickfont=dict(color=COLORS["text"])),
             showlegend=False,
         )
         fig_bar.update_traces(marker_line_width=0)
@@ -564,18 +571,16 @@ elif page == "Segment Explorer":
             ],
         )
         fig_clv.update_layout(
-            **PLOTLY_BASE,
+            **plot_layout(),
             xaxis=dict(showgrid=True, gridcolor=COLORS["border"],
                        title="Avg 12M CLV (£)", tickprefix="£",
                        tickfont=dict(color=COLORS["text_muted"])),
-            yaxis=dict(showgrid=False, title=None,
-                       tickfont=dict(color=COLORS["text"])),
+            yaxis=dict(showgrid=False, title=None, tickfont=dict(color=COLORS["text"])),
             showlegend=False,
         )
         fig_clv.update_traces(marker_line_width=0)
         st.plotly_chart(fig_clv, use_container_width=True)
 
-    # Treemap
     all_seg["total_revenue_est"] = all_seg["avg_monetary"] * all_seg["n_customers"]
     fig_tree = px.treemap(
         all_seg,
@@ -583,16 +588,22 @@ elif page == "Segment Explorer":
         values="total_revenue_est",
         title="Revenue Share by Segment (estimated from avg monetary × customers)",
         color="mean_clv",
-        color_continuous_scale=[[0, COLORS["surface_2"]], [0.5, COLORS["primary"]], [1, COLORS["accent"]]],
+        color_continuous_scale=[
+            [0,   COLORS["surface_2"]],
+            [0.5, COLORS["primary"]],
+            [1,   COLORS["accent"]],
+        ],
     )
+    # coloraxis_colorbar is excluded from PLOTLY_BASE to avoid duplicate-keyword error
     fig_tree.update_layout(
-        **PLOTLY_BASE,
-        coloraxis_colorbar=dict(
-            title="Avg CLV (£)",
-            tickprefix="£",
-            tickfont=dict(color=COLORS["text"]),
-            titlefont=dict(color=COLORS["text"]),
-        ),
+        **plot_layout(
+            coloraxis_colorbar=dict(
+                title="Avg CLV (£)",
+                tickprefix="£",
+                tickfont=dict(color=COLORS["text"]),
+                titlefont=dict(color=COLORS["text"]),
+            )
+        )
     )
     fig_tree.update_traces(
         textfont=dict(family=f"{FONT}, sans-serif", color="white"),
@@ -601,7 +612,6 @@ elif page == "Segment Explorer":
     )
     st.plotly_chart(fig_tree, use_container_width=True)
 
-    # Recommendation
     action = SEGMENT_ACTIONS.get(selected_seg, "No recommendation available.")
     st.markdown(f'<div class="rec-box"><strong>Recommended action ({selected_seg}):</strong> {action}</div>',
                 unsafe_allow_html=True)
@@ -615,19 +625,47 @@ elif page == "Cohort Retention":
                 "Monthly cohort retention heatmap — 25 cohorts, Dec 2009–Dec 2011.</div>",
                 unsafe_allow_html=True)
 
-    cohort_df = query("SELECT * FROM cohort_retention ORDER BY cohort_month, period_number")
+    # Segment filter — "All Segments" aggregates across the full cohort
+    seg_options = (
+        query("SELECT DISTINCT segment FROM cohort_retention ORDER BY segment")
+        ["segment"].tolist()
+    )
+    seg_filter = st.selectbox(
+        "Segment filter",
+        options=["All Segments"] + seg_options,
+        index=0,
+    )
+
+    if seg_filter == "All Segments":
+        # Aggregate n_active and cohort_size across segments to recover global rate
+        cohort_df = query("""
+            SELECT cohort_month, cohort_label, period_number,
+                   SUM(n_active)    AS n_active,
+                   SUM(cohort_size) AS cohort_size,
+                   CAST(SUM(n_active) AS REAL) / SUM(cohort_size) AS retention_rate
+            FROM cohort_retention
+            GROUP BY cohort_month, cohort_label, period_number
+            ORDER BY cohort_month, period_number
+        """)
+    else:
+        cohort_df = query("""
+            SELECT cohort_month, cohort_label, period_number,
+                   n_active, cohort_size, retention_rate
+            FROM cohort_retention
+            WHERE segment = ?
+            ORDER BY cohort_month, period_number
+        """, params=[seg_filter])
 
     if cohort_df.empty:
-        st.markdown('<div class="alert-box">cohort_retention table not found or empty. '
+        st.markdown('<div class="alert-box">No retention data found. '
                     'Run 07_load_to_sqlite.R to rebuild the database.</div>',
                     unsafe_allow_html=True)
         st.stop()
 
-    # Pivot to wide for heatmap
+    # Pivot to wide — (cohort_label, period_number) is unique after aggregation
     pivot = cohort_df.pivot(
         index="cohort_label", columns="period_number", values="retention_rate"
     )
-    # Preserve chronological order
     cohort_order = (
         cohort_df[["cohort_month", "cohort_label"]]
         .drop_duplicates()
@@ -637,7 +675,7 @@ elif page == "Cohort Retention":
     pivot = pivot.reindex(cohort_order)
     pivot.columns = [f"M{c}" for c in pivot.columns]
 
-    # ── Top 5 worst retention drops (M0→M1) ──
+    # Top 5 worst M0→M1 retention drops
     m1_data = cohort_df[cohort_df["period_number"] == 1].copy()
     m1_data["drop"] = 1 - m1_data["retention_rate"]
     worst_5 = m1_data.nlargest(5, "drop")[["cohort_label", "retention_rate", "drop"]]
@@ -657,10 +695,8 @@ elif page == "Cohort Retention":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Heatmap
-    text_matrix = pivot.applymap(
-        lambda v: f"{v:.0%}" if pd.notna(v) else ""
-    )
+    # pandas 2.x: applymap() → map()
+    text_matrix = pivot.map(lambda v: f"{v:.0%}" if pd.notna(v) else "")
 
     fig = go.Figure(go.Heatmap(
         z=pivot.values,
@@ -687,9 +723,11 @@ elif page == "Cohort Retention":
         hovertemplate="<b>%{y}</b><br>%{x}: %{z:.1%}<extra></extra>",
     ))
 
+    # margin is excluded from PLOTLY_BASE to avoid duplicate-keyword error;
+    # override via plot_layout() here with the wider left margin for cohort labels
     fig.update_layout(
-        **PLOTLY_BASE,
-        title="Monthly Cohort Retention — UK Customers",
+        **plot_layout(margin=dict(l=100, r=16, t=48, b=40)),
+        title="Monthly Cohort Retention" + (f" — {seg_filter}" if seg_filter != "All Segments" else " — All Segments"),
         height=560,
         xaxis=dict(
             title="Months Since First Purchase",
@@ -701,12 +739,10 @@ elif page == "Cohort Retention":
             tickfont=dict(color=COLORS["text"]),
             showgrid=False,
         ),
-        margin=dict(l=100, r=16, t=48, b=40),
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Key insight box
     st.markdown("""
     <div class="insight-box">
       <strong style="color:#E2E8F0">Key findings from the heatmap:</strong><br><br>
