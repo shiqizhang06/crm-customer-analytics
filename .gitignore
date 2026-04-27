@@ -65,7 +65,7 @@ data/processed/*.db
 app/__pycache__/
 __pycache__/
 *.pyc
-.streamlit/
+.streamlit/secrets.toml
 
 # OS
 .DS_Store
