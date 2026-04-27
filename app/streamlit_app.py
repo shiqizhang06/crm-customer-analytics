@@ -482,7 +482,7 @@ if page == "Customer Lookup":
     # Amber accent strip = the primary metric on this page
     col2.markdown(kpi_card("Predicted 12M CLV", fmt_gbp(c["clv_12m"]),
                            "12-month BG/NBD model", accent=True), unsafe_allow_html=True)
-    col3.markdown(kpi_card("CLV Decile", decile_lbl, "10 = highest CLV"), unsafe_allow_html=True)
+    col3.markdown(kpi_card("CLV Decile", decile_lbl, "Percentile rank by predicted CLV"), unsafe_allow_html=True)
     col4.markdown(kpi_card("P(Alive)", palive, palive_sub), unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
