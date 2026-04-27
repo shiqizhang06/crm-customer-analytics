@@ -54,8 +54,6 @@ if (file.exists(db_path)) {
 }
 
 con <- dbConnect(RSQLite::SQLite(), db_path)
-on.exit(dbDisconnect(con), add = TRUE)
-
 message("Connected: ", db_path)
 
 # ---- Load CSV Tables ----
@@ -124,3 +122,5 @@ db_size_mb <- file.size(db_path) / 1e6
 message(sprintf("\n  DB size: %.1f MB", db_size_mb))
 message(sprintf("  Path:    %s", db_path))
 message("========================================\n")
+
+dbDisconnect(con)

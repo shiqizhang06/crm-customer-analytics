@@ -14,11 +14,14 @@ library(lubridate)
 
 # ---- Load Cleaned Data ----
 
-if (!file.exists("data/processed/retail_clean.rds")) {
+if (!file.exists("data/processed/retail_clean.rds"))
   stop("Cleaned data not found. Run 01_data_cleaning.R first.")
-}
+if (!file.exists("data/processed/rfm_segments.rds"))
+  stop("RFM segments not found. Run 03_rfm_segmentation.R first.")
 
-df <- readRDS("data/processed/retail_clean.rds")
+df       <- readRDS("data/processed/retail_clean.rds")
+segments <- readRDS("data/processed/rfm_segments.rds") |>
+  select(customer_id, segment)
 dir.create("outputs/figures", recursive = TRUE, showWarnings = FALSE)
 dir.create("data/processed",  recursive = TRUE, showWarnings = FALSE)
 
@@ -153,18 +156,67 @@ message(sprintf("  Avg M3 retention:  %.1f%%", m3_retention * 100))
 message(sprintf("  Avg M6 retention:  %.1f%%", m6_retention * 100))
 message("=====================================\n")
 
+# ---- Build Segment-Level Retention Matrix ----
+# Each customer's current RFM segment is projected back onto their cohort
+# activity, enabling cohort × segment cross-filtering in Tableau / Streamlit.
+
+cohort_sizes_seg <- cohort_map |>
+  left_join(segments, by = "customer_id") |>
+  count(cohort_month, segment, name = "cohort_size")
+
+retention_counts_seg <- cohort_data |>
+  left_join(segments, by = "customer_id") |>
+  group_by(cohort_month, segment, period_number) |>
+  summarise(n_active = n_distinct(customer_id), .groups = "drop")
+
+# Densify: build a complete grid of cohort × segment × period so that
+# zero-activity periods are explicit rows (n_active=0) rather than missing.
+# Without this, downstream aggregations see a shrinking denominator.
+max_period_by_cohort <- retention_matrix |>
+  group_by(cohort_month) |>
+  summarise(max_period = max(period_number), .groups = "drop")
+
+all_segments <- sort(unique(segments$segment))
+
+complete_grid <- cohort_sizes_seg |>
+  select(cohort_month, segment) |>
+  left_join(max_period_by_cohort, by = "cohort_month") |>
+  rowwise() |>
+  mutate(period_number = list(seq(0L, max_period))) |>
+  unnest(period_number) |>
+  select(-max_period)
+
+retention_by_segment <- complete_grid |>
+  left_join(retention_counts_seg, by = c("cohort_month", "segment", "period_number")) |>
+  left_join(cohort_sizes_seg,     by = c("cohort_month", "segment")) |>
+  mutate(
+    n_active       = coalesce(n_active, 0L),
+    retention_rate = n_active / cohort_size,
+    cohort_label   = format(cohort_month, "%b %Y")
+  ) |>
+  select(cohort_month, segment, cohort_label, period_number,
+         cohort_size, n_active, retention_rate) |>
+  arrange(cohort_month, segment, period_number)
+
+message(sprintf("Segment retention: %s cohort × segment pairs, %s total rows (dense)",
+                n_distinct(paste(retention_by_segment$cohort_month,
+                                 retention_by_segment$segment)),
+                nrow(retention_by_segment)))
+
 # ---- Export ----
 
-# Wide format for Tableau (cohort × period)
+# Wide format for Tableau (cohort × period, global — unchanged)
 retention_wide <- retention_matrix |>
   select(cohort_month, period_number, retention_rate) |>
   pivot_wider(names_from = period_number,
               names_prefix = "month_",
               values_from = retention_rate)
 
-saveRDS(retention_matrix, "data/processed/cohort_retention.rds")
-write_csv(retention_matrix, "data/processed/cohort_retention.csv")
-write_csv(retention_wide,   "data/processed/cohort_retention_wide.csv")
+# cohort_retention.rds / .csv now use segment-level matrix
+# (global retention_matrix kept in memory for the plots above)
+saveRDS(retention_by_segment, "data/processed/cohort_retention.rds")
+write_csv(retention_by_segment, "data/processed/cohort_retention.csv")
+write_csv(retention_wide,        "data/processed/cohort_retention_wide.csv")
 
 message("Saved: data/processed/cohort_retention.rds")
 message("Saved: data/processed/cohort_retention.csv")

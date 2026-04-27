@@ -132,8 +132,7 @@ message("Saved: outputs/tableau/transactions.csv")
 # Pass-through with human-readable cohort labels added for Tableau display.
 
 cohort_tableau <- cohort |>
-  mutate(cohort_label = format(cohort_month, "%b %Y")) |>
-  select(cohort_month, cohort_label, period_number,
+  select(cohort_month, segment, cohort_label, period_number,
          cohort_size, n_active, retention_rate)
 
 message(sprintf("Cohort retention: %s rows (%s cohorts × periods)",
