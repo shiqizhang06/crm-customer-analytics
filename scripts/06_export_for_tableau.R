@@ -88,6 +88,12 @@ customer_master <- customer_base |>
     total_revenue, total_orders,
     p_alive, exp_transactions_12m, exp_spend, clv_12m, clv_decile,
     cal_frequency
+  ) |>
+  mutate(
+    customer_id         = as.integer(customer_id),
+    first_purchase_date = format(first_purchase_date, "%Y-%m-%d"),
+    last_purchase_date  = format(last_purchase_date,  "%Y-%m-%d"),
+    cohort_month        = format(cohort_month,         "%Y-%m-%d")
   )
 
 # Quality checks
@@ -119,6 +125,11 @@ transactions <- df |>
   left_join(
     customer_master |> select(customer_id, segment, clv_decile, cohort_month),
     by = "customer_id"
+  ) |>
+  mutate(
+    customer_id  = as.integer(customer_id),
+    invoice_date = format(invoice_date, "%Y-%m-%d")
+    # cohort_month already character from customer_master
   )
 
 stopifnot("Missing customer_id in transactions" = !anyNA(transactions$customer_id))

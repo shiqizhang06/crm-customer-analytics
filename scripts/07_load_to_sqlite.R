@@ -60,7 +60,11 @@ message("Connected: ", db_path)
 
 load_csv <- function(filename, table_name) {
   path <- file.path(tableau_dir, filename)
-  df   <- read_csv(path, show_col_types = FALSE)
+  # read_csv auto-parses YYYY-MM-DD strings as Date; RSQLite would convert
+  # those back to R's integer day-count. Convert all Date columns to character
+  # so they are stored as TEXT in SQLite and read back correctly by Python.
+  df   <- read_csv(path, show_col_types = FALSE) |>
+    mutate(across(where(is.Date), as.character))
   dbWriteTable(con, table_name, df, overwrite = TRUE)
   message(sprintf("  Loaded %-20s — %s rows, %s cols",
                   table_name, comma(nrow(df)), ncol(df)))
@@ -86,7 +90,11 @@ message("\nLoading retail_clean from RDS...")
 retail_clean <- readRDS(rds_path) |>
   select(invoice_no, invoice_date = invoice_date_only,
          customer_id, stock_code, description,
-         quantity, unit_price, total_amount, country)
+         quantity, unit_price, total_amount, country) |>
+  mutate(
+    customer_id  = as.integer(customer_id),
+    invoice_date = format(invoice_date, "%Y-%m-%d")
+  )
 
 dbWriteTable(con, "retail_clean", retail_clean, overwrite = TRUE)
 message(sprintf("  Loaded %-20s — %s rows, %s cols",
