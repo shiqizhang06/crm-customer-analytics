@@ -58,6 +58,15 @@ data/processed/*.csv
 *.hyper
 outputs/tableau/transactions.csv
 
+# SQLite DB
+data/processed/*.db
+
+# Python
+app/__pycache__/
+__pycache__/
+*.pyc
+.streamlit/
+
 # OS
 .DS_Store
 Thumbs.db
