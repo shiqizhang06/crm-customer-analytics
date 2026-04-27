@@ -111,7 +111,7 @@ _CSS = f"""
     background: {COLORS["primary"]};
   }}
   .kpi-label {{
-    font-size: 11px !important;
+    font-size: 12px !important;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -182,18 +182,20 @@ _CSS = f"""
     border-left: 3px solid {COLORS["accent"]};
     border-radius: 0 8px 8px 0;
     padding: 16px 20px;
-    margin-top: 16px;
-    font-size: 14px;
-    color: {COLORS["text_muted"]} !important;
-    line-height: 1.7;
+    margin-top: 20px;
   }}
   .rec-box .rec-label {{
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: {COLORS["accent"]} !important;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+  }}
+  .rec-box .rec-body {{
+    font-size: 15px;
+    color: {COLORS["text"]} !important;
+    line-height: 1.7;
   }}
   .rec-box strong {{ color: {COLORS["accent"]} !important; }}
 
@@ -204,8 +206,8 @@ _CSS = f"""
     border-radius: 0 8px 8px 0;
     padding: 16px 20px;
     margin-bottom: 12px;
-    font-size: 14px;
-    color: {COLORS["text_muted"]} !important;
+    font-size: 15px;
+    color: {COLORS["text"]} !important;
     line-height: 1.7;
   }}
   .insight-box strong {{ color: {COLORS["text"]} !important; }}
@@ -215,14 +217,14 @@ _CSS = f"""
     border: 1px solid {COLORS["danger"]};
     border-radius: 8px;
     padding: 16px 20px;
-    font-size: 14px;
+    font-size: 15px;
     color: {COLORS["danger"]} !important;
   }}
 
   /* ── Selectbox — blue border signals interactivity, amber on hover ── */
   [data-testid="stSelectbox"] label {{
     color: {COLORS["text_muted"]} !important;
-    font-size: 11px !important;
+    font-size: 12px !important;
     font-weight: 700 !important;
     letter-spacing: 0.07em !important;
     text-transform: uppercase !important;
@@ -232,7 +234,7 @@ _CSS = f"""
     border: 1px solid {COLORS["primary"]} !important;
     border-radius: 6px !important;
     color: {COLORS["text"]} !important;
-    font-size: 14px !important;
+    font-size: 15px !important;
     font-weight: 500 !important;
   }}
   [data-testid="stSelectbox"] > div > div:hover {{
@@ -250,7 +252,7 @@ _CSS = f"""
   [data-baseweb="popover"] [role="option"] {{
     color: {COLORS["text"]} !important;
     background-color: transparent !important;
-    font-size: 14px !important;
+    font-size: 15px !important;
   }}
   [data-baseweb="popover"] li:hover,
   [data-baseweb="popover"] [role="option"]:hover,
@@ -272,9 +274,6 @@ PLOTLY_BASE = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family=f"{FONT}, sans-serif", color=COLORS["text"], size=13),
-    title_font_color=COLORS["text"],
-    title_font_size=15,
-    title_font_family=f"{FONT}, sans-serif",
     hoverlabel=dict(
         bgcolor=COLORS["surface_2"],
         bordercolor=COLORS["border"],
@@ -286,6 +285,11 @@ _DEFAULT_MARGIN = dict(l=16, r=16, t=44, b=16)
 
 def plot_layout(**overrides):
     return {**PLOTLY_BASE, "margin": _DEFAULT_MARGIN, **overrides}
+
+def chart_title(text):
+    """Explicit title dict — avoids magic-underscore colour loss."""
+    return dict(text=text, font=dict(color=COLORS["text"], size=15,
+                                     family=f"{FONT}, sans-serif"))
 
 # ── Database ───────────────────────────────────────────────────────────────────
 
@@ -383,7 +387,8 @@ def rfm_bar(label, score):
 def rec_box(segment, action):
     return (f'<div class="rec-box">'
             f'<div class="rec-label">Recommended action — {segment}</div>'
-            f'{action}</div>')
+            f'<p class="rec-body">{action}</p>'
+            f'</div>')
 
 def fmt_gbp(v):
     return "N/A" if pd.isna(v) else f"£{v:,.0f}"
@@ -397,7 +402,7 @@ def clv_decile_label(n):
     return f"Top {top}%" if top <= 50 else f"Bottom {int(n) * 10}%"
 
 def section_label(text):
-    return (f'<div style="font-size:11px;font-weight:700;letter-spacing:.07em;'
+    return (f'<div style="font-size:12px;font-weight:700;letter-spacing:.07em;'
             f'text-transform:uppercase;color:{COLORS["text_muted"]};margin-bottom:14px">'
             f'{text}</div>')
 
@@ -518,7 +523,7 @@ if page == "Customer Lookup":
             ))
             fig.update_layout(
                 **plot_layout(),
-                title="Monthly Purchase Revenue",
+                title=chart_title("Monthly Purchase Revenue"),
                 # type="category" prevents Plotly interpolating month strings
                 # as timestamps (fixes "23:59:59" ticks on sparse data)
                 xaxis=dict(showgrid=False, title=None, type="category",
@@ -596,9 +601,6 @@ elif page == "Segment Explorer":
     col5.markdown(kpi_card("Avg CLV", fmt_gbp(seg_summary["mean_clv"]),
                            "12-month prediction", accent=True), unsafe_allow_html=True)
 
-    st.markdown(rec_box(selected_seg, SEGMENT_ACTIONS.get(
-        selected_seg, "No recommendation available.")), unsafe_allow_html=True)
-
     # ── All-segments comparison ──
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown(section_label("All Segments — Comparison"), unsafe_allow_html=True)
@@ -616,7 +618,7 @@ elif page == "Segment Explorer":
             hovertemplate="%{y}: %{x:,} customers<extra></extra>",
         ))
         fig_bar.update_layout(
-            **plot_layout(), title="Customers by Segment",
+            **plot_layout(), title=chart_title("Customers by Segment"),
             xaxis=dict(showgrid=True, gridcolor=COLORS["border"],
                        title="Customers", tickfont=dict(color=COLORS["text_muted"])),
             yaxis=dict(showgrid=False, title=None, tickfont=dict(color=COLORS["text"])),
@@ -633,7 +635,7 @@ elif page == "Segment Explorer":
             hovertemplate="%{y}: £%{x:,.0f}<extra></extra>",
         ))
         fig_clv.update_layout(
-            **plot_layout(), title="Avg Predicted CLV by Segment",
+            **plot_layout(), title=chart_title("Avg Predicted CLV by Segment"),
             xaxis=dict(showgrid=True, gridcolor=COLORS["border"],
                        title="Avg 12M CLV (£)", tickprefix="£",
                        tickfont=dict(color=COLORS["text_muted"])),
@@ -669,9 +671,12 @@ elif page == "Segment Explorer":
     ))
     fig_tree.update_layout(
         **plot_layout(),
-        title="Revenue Share by Segment  (avg monetary × customers)",
+        title=chart_title("Revenue Share by Segment — Average Monetary × Customers"),
     )
     st.plotly_chart(fig_tree, use_container_width=True)
+
+    st.markdown(rec_box(selected_seg, SEGMENT_ACTIONS.get(
+        selected_seg, "No recommendation available.")), unsafe_allow_html=True)
 
 
 # ── Page 3: Cohort Retention ───────────────────────────────────────────────────
@@ -773,7 +778,7 @@ elif page == "Cohort Retention":
     ))
     fig.update_layout(
         **plot_layout(margin=dict(l=100, r=16, t=48, b=40)),
-        title=heatmap_title, height=560,
+        title=chart_title(heatmap_title), height=560,
         xaxis=dict(title="Months Since First Purchase",
                    tickfont=dict(color=COLORS["text_muted"]), showgrid=False),
         yaxis=dict(title=None, tickfont=dict(color=COLORS["text"]), showgrid=False),
