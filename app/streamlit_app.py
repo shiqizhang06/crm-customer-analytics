@@ -613,8 +613,15 @@ elif page == "Segment Explorer":
         df_bar = all_seg.sort_values("n_customers")
         fig_bar = go.Figure(go.Bar(
             x=df_bar["n_customers"], y=df_bar["segment"], orientation="h",
-            marker_color=[COLORS["accent"] if s == selected_seg else COLORS["primary"]
-                          for s in df_bar["segment"]],
+            marker=dict(
+                color=[COLORS["text"] if s == selected_seg else COLORS["primary"]
+                       for s in df_bar["segment"]],
+                line=dict(
+                    color=[COLORS["text"] if s == selected_seg else "rgba(0,0,0,0)"
+                           for s in df_bar["segment"]],
+                    width=1.5,
+                ),
+            ),
             hovertemplate="%{y}: %{x:,} customers<extra></extra>",
         ))
         fig_bar.update_layout(
@@ -630,8 +637,15 @@ elif page == "Segment Explorer":
         df_clv = all_seg.sort_values("mean_clv")
         fig_clv = go.Figure(go.Bar(
             x=df_clv["mean_clv"], y=df_clv["segment"], orientation="h",
-            marker_color=[COLORS["accent"] if s == selected_seg else COLORS["primary"]
-                          for s in df_clv["segment"]],
+            marker=dict(
+                color=[COLORS["text"] if s == selected_seg else COLORS["primary"]
+                       for s in df_clv["segment"]],
+                line=dict(
+                    color=[COLORS["text"] if s == selected_seg else "rgba(0,0,0,0)"
+                           for s in df_clv["segment"]],
+                    width=1.5,
+                ),
+            ),
             hovertemplate="%{y}: £%{x:,.0f}<extra></extra>",
         ))
         fig_clv.update_layout(
