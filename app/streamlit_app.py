@@ -261,24 +261,19 @@ _CSS = f"""
     color: white !important;
   }}
 
-  /* ── Expander — styled as a clickable bar ── */
+  /* ── Expander — outer container ── */
   [data-testid="stExpander"] {{
     border: 1px solid {COLORS["border"]} !important;
     border-radius: 8px !important;
-    background: {COLORS["surface"]} !important;
-    margin-bottom: 20px !important;
     overflow: hidden !important;
+    margin-bottom: 20px !important;
   }}
-  [data-testid="stExpander"]:has(details[open]) {{
-    border-color: {COLORS["primary"]} !important;
-  }}
+  /* Header bar */
   [data-testid="stExpander"] summary {{
     padding: 14px 20px !important;
     background: {COLORS["surface"]} !important;
     cursor: pointer !important;
-    list-style: none !important;
-    display: flex !important;
-    align-items: center !important;
+    border: none !important;
     border-bottom: none !important;
     box-shadow: none !important;
     outline: none !important;
@@ -297,10 +292,17 @@ _CSS = f"""
     color: {COLORS["primary"]} !important;
     fill: {COLORS["primary"]} !important;
   }}
-  [data-testid="stExpander"] > div:last-child {{
-    padding: 4px 20px 16px !important;
-    background: {COLORS["surface"]} !important;
+  /* Content panel — kill any default details border, add thin separator */
+  [data-testid="stExpander"] details {{
+    border: none !important;
+    box-shadow: none !important;
+  }}
+  [data-testid="stExpanderDetails"] {{
+    border: none !important;
     border-top: 1px solid {COLORS["border"]} !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: {COLORS["bg"]} !important;
   }}
 
   hr {{ border-color: {COLORS["border"]}; margin: 24px 0; }}
@@ -348,6 +350,70 @@ SEGMENT_DEFINITIONS = {
     "Hibernating":         {"scores": "R ≤2 · F ≤2 · M ≥3",  "desc": "Inactive but once spent well — seasonal targets"},
     "Lost":                {"scores": "R ≤2 · F ≤2",          "desc": "Lowest recency and frequency — likely churned"},
 }
+
+# Health tiers: colour, label, segments (in display order)
+SEGMENT_TIERS = [
+    {
+        "label": "High Value",
+        "color": "#34D399",   # green
+        "segments": ["Champions", "Loyal Customers"],
+    },
+    {
+        "label": "Growing",
+        "color": "#3D8EF0",   # blue
+        "segments": ["Potential Loyalists", "New Customers", "Promising"],
+    },
+    {
+        "label": "At Risk",
+        "color": "#FB923C",   # orange
+        "segments": ["Can't Lose Them", "At Risk"],
+    },
+    {
+        "label": "Dormant",
+        "color": "#94A3B8",   # slate
+        "segments": ["Hibernating", "Lost"],
+    },
+]
+
+def _seg_card(seg, color):
+    defn = SEGMENT_DEFINITIONS[seg]
+    bg   = color + "0D"  # 5% opacity hex
+    br   = color + "33"  # 20% opacity for border
+    return (
+        f'<div style="background:{bg};border:1px solid {br};border-left:3px solid {color};'
+        f'border-radius:6px;padding:12px 14px">'
+        f'<div style="font-size:13px;font-weight:700;color:{COLORS["text"]};margin-bottom:5px">{seg}</div>'
+        f'<div style="font-size:11px;font-family:monospace;color:{color};'
+        f'letter-spacing:.03em;margin-bottom:7px">{defn["scores"]}</div>'
+        f'<div style="font-size:12px;color:{COLORS["text_muted"]};line-height:1.5">{defn["desc"]}</div>'
+        f'</div>'
+    )
+
+def segment_definitions_html():
+    intro = (
+        f'<div style="font-size:12px;color:{COLORS["text_muted"]};padding:14px 20px 10px;'
+        f'border-bottom:1px solid {COLORS["border"]}">'
+        f'Scores 1–5 are quintiles across all customers. '
+        f'<strong style="color:{COLORS["text"]}">R</strong> = days since last purchase (5 = most recent) &nbsp;·&nbsp; '
+        f'<strong style="color:{COLORS["text"]}">F</strong> = unique orders &nbsp;·&nbsp; '
+        f'<strong style="color:{COLORS["text"]}">M</strong> = avg spend per order'
+        f'</div>'
+    )
+    tiers_html = '<div style="padding:14px 20px 20px;display:flex;flex-direction:column;gap:20px">'
+    for tier in SEGMENT_TIERS:
+        n   = len(tier["segments"])
+        col = "repeat(3,1fr)" if n == 3 else "repeat(2,1fr)"
+        cards = "".join(_seg_card(s, tier["color"]) for s in tier["segments"])
+        tiers_html += (
+            f'<div>'
+            f'<div style="font-size:11px;font-weight:700;letter-spacing:.08em;'
+            f'text-transform:uppercase;color:{tier["color"]};margin-bottom:10px">'
+            f'● {tier["label"]}</div>'
+            f'<div style="display:grid;grid-template-columns:{col};gap:8px">{cards}</div>'
+            f'</div>'
+        )
+    tiers_html += '</div>'
+    return intro + tiers_html
 
 SEGMENT_ACTIONS = {
     "Champions": (
@@ -489,27 +555,7 @@ if page == "Customer Lookup":
                 unsafe_allow_html=True)
 
     with st.expander("Segment definitions", expanded=False):
-        st.markdown(
-            f'<div style="font-size:13px;color:{COLORS["text_muted"]};margin-bottom:16px">'
-            f'Scores 1–5 are quintiles. '
-            f'<strong style="color:{COLORS["text"]}">R</strong> = days since last purchase (5 = most recent) · '
-            f'<strong style="color:{COLORS["text"]}">F</strong> = unique orders · '
-            f'<strong style="color:{COLORS["text"]}">M</strong> = avg spend per order</div>',
-            unsafe_allow_html=True,
-        )
-        cols = st.columns(3)
-        for i, seg in enumerate(SEGMENT_ORDER):
-            defn = SEGMENT_DEFINITIONS[seg]
-            cols[i % 3].markdown(
-                f'<div style="background:{COLORS["surface"]};border:1px solid {COLORS["border"]};'
-                f'border-radius:6px;padding:12px 14px;margin-bottom:10px">'
-                f'<div style="font-size:13px;font-weight:700;color:{COLORS["text"]};margin-bottom:4px">{seg}</div>'
-                f'<div style="font-size:12px;font-weight:600;color:{COLORS["primary"]};'
-                f'font-family:monospace;margin-bottom:6px">{defn["scores"]}</div>'
-                f'<div style="font-size:13px;color:{COLORS["text_muted"]}">{defn["desc"]}</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+        st.markdown(segment_definitions_html(), unsafe_allow_html=True)
 
     customer_ids = (
         query("SELECT customer_id FROM customer_master ORDER BY customer_id")
