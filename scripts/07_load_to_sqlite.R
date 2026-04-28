@@ -76,40 +76,38 @@ load_csv("customer_master.csv",  "customer_master")
 load_csv("cohort_retention.csv", "cohort_retention")
 load_csv("segment_summary.csv",  "segment_summary")
 
-# transactions.csv is large and gitignored; load if present locally
-trans_path <- file.path(tableau_dir, "transactions.csv")
-if (file.exists(trans_path)) {
-  load_csv("transactions.csv", "transactions")
-} else {
-  message("  transactions.csv not found locally — skipping (gitignored)")
-}
+# transactions.csv is Tableau-only and not queried by the Streamlit app.
+# Excluded from the SQLite DB to keep file size small enough to commit.
 
-# ---- Load Retail Clean (transactions source for Streamlit) ----
+# ---- Load Customer Monthly Revenue (pre-aggregated from retail_clean) ----
+# Full retail_clean (400K rows) is too large to commit to the repo.
+# The Streamlit app only needs monthly revenue per customer for the
+# purchase history chart — pre-aggregate here to keep the DB small.
 
-message("\nLoading retail_clean from RDS...")
-retail_clean <- readRDS(rds_path) |>
-  select(invoice_no, invoice_date = invoice_date_only,
-         customer_id, stock_code, description,
-         quantity, unit_price, total_amount, country) |>
+message("\nBuilding customer_monthly_revenue from RDS...")
+customer_monthly_revenue <- readRDS(rds_path) |>
   mutate(
-    customer_id  = as.integer(customer_id),
-    invoice_date = format(invoice_date, "%Y-%m-%d")
-  )
+    customer_id = as.integer(customer_id),
+    month       = format(invoice_date_only, "%Y-%m")
+  ) |>
+  group_by(customer_id, month) |>
+  summarise(revenue = sum(total_amount), .groups = "drop")
 
-dbWriteTable(con, "retail_clean", retail_clean, overwrite = TRUE)
+dbWriteTable(con, "customer_monthly_revenue", customer_monthly_revenue, overwrite = TRUE)
 message(sprintf("  Loaded %-20s — %s rows, %s cols",
-                "retail_clean", comma(nrow(retail_clean)), ncol(retail_clean)))
+                "customer_monthly_revenue",
+                comma(nrow(customer_monthly_revenue)),
+                ncol(customer_monthly_revenue)))
 
 # ---- Create Indexes ----
 
 message("\nCreating indexes...")
 
 indexes <- list(
-  "idx_cm_customer_id" = "CREATE INDEX idx_cm_customer_id ON customer_master(customer_id)",
-  "idx_cm_segment"     = "CREATE INDEX idx_cm_segment     ON customer_master(segment)",
-  "idx_cm_clv_decile"  = "CREATE INDEX idx_cm_clv_decile  ON customer_master(clv_decile)",
-  "idx_rc_customer_id" = "CREATE INDEX idx_rc_customer_id ON retail_clean(customer_id)",
-  "idx_rc_date"        = "CREATE INDEX idx_rc_date        ON retail_clean(invoice_date)"
+  "idx_cm_customer_id"  = "CREATE INDEX idx_cm_customer_id  ON customer_master(customer_id)",
+  "idx_cm_segment"      = "CREATE INDEX idx_cm_segment      ON customer_master(segment)",
+  "idx_cm_clv_decile"   = "CREATE INDEX idx_cm_clv_decile   ON customer_master(clv_decile)",
+  "idx_cmr_customer_id" = "CREATE INDEX idx_cmr_customer_id ON customer_monthly_revenue(customer_id)"
 )
 
 for (name in names(indexes)) {

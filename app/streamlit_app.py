@@ -668,11 +668,10 @@ if page == "Customer Lookup":
     with col_chart:
         # invoice_date is now stored as text "YYYY-MM-DD" in SQLite
         history = query("""
-            SELECT strftime('%Y-%m', invoice_date) AS month,
-                   SUM(total_amount)               AS revenue
-            FROM retail_clean
-            WHERE CAST(customer_id AS INTEGER) = ?
-            GROUP BY month ORDER BY month
+            SELECT month, revenue
+            FROM customer_monthly_revenue
+            WHERE customer_id = ?
+            ORDER BY month
         """, params=[int(selected_id)])
 
         if not history.empty:

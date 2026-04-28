@@ -58,8 +58,8 @@ data/processed/*.csv
 *.hyper
 outputs/tableau/transactions.csv
 
-# SQLite DB
-data/processed/*.db
+# SQLite DB — tracked so Streamlit Cloud can read it directly
+# data/processed/*.db
 
 # Python
 app/__pycache__/
