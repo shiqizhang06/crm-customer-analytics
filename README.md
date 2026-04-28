@@ -13,7 +13,7 @@ Delivered in two dashboards built for different audiences and purposes:
 
 | | Tableau | Streamlit |
 |---|---|---|
-| **Link** | [View on Tableau Public](https://public.tableau.com/views/CRMAnalytics_17772842145240/CustomerValueRetentionOverview) | Run locally (see below) |
+| **Link** | [View on Tableau Public](https://public.tableau.com/views/CRMAnalytics_17772842145240/CustomerValueRetentionOverview) | [Live app →](https://crm-customer-analytics.streamlit.app) |
 | **Audience** | Executives and stakeholders | Analysts and CRM teams |
 | **Purpose** | Broadcast — answers known questions for a known audience | Self-serve — lets stakeholders explore questions the analyst didn't anticipate |
 | **Build time** | 1.5 hrs | 2.5 hrs |
@@ -51,6 +51,9 @@ Single-page dashboard for executive stakeholders. KPI summary, RFM segment distr
 
 ### Streamlit — Self-Serve Operational Tool
 
+**[Live app → crm-customer-analytics.streamlit.app](https://crm-customer-analytics.streamlit.app)**
+
+To run locally:
 ```bash
 Rscript scripts/07_load_to_sqlite.R   # build SQLite DB (run once after R pipeline)
 pip install -r app/requirements.txt
