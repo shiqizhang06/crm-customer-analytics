@@ -295,6 +295,18 @@ def chart_title(text):
 
 DB_PATH = Path(__file__).parent.parent / "data" / "processed" / "crm.db"
 
+SEGMENT_DEFINITIONS = {
+    "Champions":           {"scores": "R ≥4 · F ≥4 · M ≥4",  "desc": "Recent, frequent, high-spend — the revenue core"},
+    "Loyal Customers":     {"scores": "R ≥3 · F ≥3 · M ≥3",  "desc": "Consistent buyers with strong engagement"},
+    "Potential Loyalists": {"scores": "R ≥3 · F ≥2 · M ≥2",  "desc": "Growing customers on track for Loyal tier"},
+    "New Customers":       {"scores": "R ≥4 · F ≤2",          "desc": "Recent first-time or low-frequency buyers"},
+    "Promising":           {"scores": "Other combinations",    "desc": "Emerging customers not yet firmly categorised"},
+    "Can't Lose Them":     {"scores": "R ≤2 · F ≥4",          "desc": "Formerly frequent buyers now lapsing"},
+    "At Risk":             {"scores": "R ≤2 · F ≥2",          "desc": "Previously engaged, now disengaging"},
+    "Hibernating":         {"scores": "R ≤2 · F ≤2 · M ≥3",  "desc": "Inactive but once spent well — seasonal targets"},
+    "Lost":                {"scores": "R ≤2 · F ≤2",          "desc": "Lowest recency and frequency — likely churned"},
+}
+
 SEGMENT_ACTIONS = {
     "Champions": (
         "VIP retention priority. This segment (646 customers) drives 51% of predicted "
@@ -430,9 +442,32 @@ with st.sidebar:
 
 if page == "Customer Lookup":
     st.markdown("## Customer Lookup")
-    st.markdown(f'<div style="color:{COLORS["text_muted"]};font-size:14px;margin-bottom:24px">'
+    st.markdown(f'<div style="color:{COLORS["text_muted"]};font-size:14px;margin-bottom:20px">'
                 "Individual customer profile — RFM scores, predicted CLV, and purchase history.</div>",
                 unsafe_allow_html=True)
+
+    with st.expander("Segment definitions", expanded=False):
+        st.markdown(
+            f'<div style="font-size:13px;color:{COLORS["text_muted"]};margin-bottom:16px">'
+            f'Scores 1–5 are quintiles. '
+            f'<strong style="color:{COLORS["text"]}">R</strong> = days since last purchase (5 = most recent) · '
+            f'<strong style="color:{COLORS["text"]}">F</strong> = unique orders · '
+            f'<strong style="color:{COLORS["text"]}">M</strong> = avg spend per order</div>',
+            unsafe_allow_html=True,
+        )
+        cols = st.columns(3)
+        for i, seg in enumerate(SEGMENT_ORDER):
+            defn = SEGMENT_DEFINITIONS[seg]
+            cols[i % 3].markdown(
+                f'<div style="background:{COLORS["surface"]};border:1px solid {COLORS["border"]};'
+                f'border-radius:6px;padding:12px 14px;margin-bottom:10px">'
+                f'<div style="font-size:13px;font-weight:700;color:{COLORS["text"]};margin-bottom:4px">{seg}</div>'
+                f'<div style="font-size:12px;font-weight:600;color:{COLORS["primary"]};'
+                f'font-family:monospace;margin-bottom:6px">{defn["scores"]}</div>'
+                f'<div style="font-size:13px;color:{COLORS["text_muted"]}">{defn["desc"]}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
     customer_ids = (
         query("SELECT customer_id FROM customer_master ORDER BY customer_id")
@@ -622,7 +657,13 @@ elif page == "Segment Explorer":
                     width=1.5,
                 ),
             ),
-            hovertemplate="%{y}: %{x:,} customers<extra></extra>",
+            customdata=[[SEGMENT_DEFINITIONS[s]["scores"], SEGMENT_DEFINITIONS[s]["desc"]]
+                        for s in df_bar["segment"]],
+            hovertemplate=(
+                "<b>%{y}</b>: %{x:,} customers<br>"
+                "<span style='color:#8B9EC4'>%{customdata[0]}</span><br>"
+                "%{customdata[1]}<extra></extra>"
+            ),
         ))
         fig_bar.update_layout(
             **plot_layout(), title=chart_title("Customers by Segment"),
@@ -646,7 +687,13 @@ elif page == "Segment Explorer":
                     width=1.5,
                 ),
             ),
-            hovertemplate="%{y}: £%{x:,.0f}<extra></extra>",
+            customdata=[[SEGMENT_DEFINITIONS[s]["scores"], SEGMENT_DEFINITIONS[s]["desc"]]
+                        for s in df_clv["segment"]],
+            hovertemplate=(
+                "<b>%{y}</b>: £%{x:,.0f} avg CLV<br>"
+                "<span style='color:#8B9EC4'>%{customdata[0]}</span><br>"
+                "%{customdata[1]}<extra></extra>"
+            ),
         ))
         fig_clv.update_layout(
             **plot_layout(), title=chart_title("Avg Predicted CLV by Segment"),
