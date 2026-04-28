@@ -16,7 +16,7 @@ Delivered in two dashboards built for different audiences and purposes:
 | **Link** | [View on Tableau Public](https://public.tableau.com/views/CRMAnalytics_17772842145240/CustomerValueRetentionOverview) | [Live app →](https://crm-customer-analytics.streamlit.app) |
 | **Audience** | Executives and stakeholders | Analysts and CRM teams |
 | **Purpose** | Broadcast — answers known questions for a known audience | Self-serve — lets stakeholders explore questions the analyst didn't anticipate |
-| **Build time** | 1.5 hrs | 2.5 hrs |
+| **Build time** | 2 hrs | 3 hrs |
 | **Pages** | 1 | 3 |
 
 The self-serve design addresses a real industry pain point: analysts spending recurring time fielding one-off requests — "can you pull customer X?", "what should we do about the At Risk segment?". The Streamlit app answers both directly, without analyst involvement.
@@ -106,10 +106,10 @@ The Streamlit app UI was designed using the [interface-design](https://github.co
 
 | | Tableau | Streamlit |
 |---|---|---|
-| **Build time** | 1.5 hrs | 2.5 hrs |
+| **Build time** | 2 hrs | 3 hrs |
 | **Pages / views** | 1 page | 3 pages |
 | **Charts & components** | 4 KPIs · treemap · 2 bar charts · heatmap | Customer lookup · 5 KPI card groups · 3 comparison charts · cohort heatmap · CSS design system · SQLite SQL layer |
 | **Interactivity** | Cross-filter (segment → heatmap) | Per-customer SQL queries · segment selector · hover tooltips with inline definitions · segment CRM recommendations |
 | **Self-serve capability** | Limited — fixed views only | Full — stakeholders answer their own questions |
 
-Streamlit took more total hours but delivered 3× the scope and a qualitatively different capability. The AI advantage here isn't raw speed — it's raising the ceiling of what's feasible to build in a single sitting, particularly on the frontend (CSS theming, Plotly configuration, interactive tooltips) where iteration cost without AI would be prohibitive.
+Streamlit took 1 extra hour but delivered 3× the scope and a qualitatively different capability — a self-serve tool vs a fixed broadcast dashboard. The AI advantage here isn't raw speed; it's raising the ceiling of what's feasible in a sitting, particularly on the frontend (CSS theming, Plotly configuration, interactive tooltips) where iteration cost without AI would be prohibitive.
