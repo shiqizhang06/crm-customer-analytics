@@ -1,81 +1,108 @@
-# crm-customer-analytics
-Customer Lifecycle & Value Analytics | RFM Segmentation, Cohort Retention, CLV Prediction
+# CRM Customer Analytics
+Customer Lifecycle & Value Analytics — RFM Segmentation · Cohort Retention · CLV Prediction
 
-## Project overview
+---
 
-End-to-end CRM analytics pipeline on the [UCI Online Retail II dataset](https://archive.ics.uci.edu/dataset/502/online+retail+ii) (UK customers, Dec 2009–Dec 2011). Covers data cleaning, exploratory analysis, RFM segmentation, cohort retention, and BG/NBD + Gamma-Gamma customer lifetime value prediction. Outputs are delivered in two dashboards: a Tableau workbook (executive-facing) and a Streamlit app (operational self-serve).
+## Overview
 
-## Pipeline
+End-to-end CRM analytics pipeline on the [UCI Online Retail II dataset](https://archive.ics.uci.edu/dataset/502/online+retail+ii) (UK customers, Dec 2009–Dec 2011). Covers data cleaning, exploratory analysis, RFM segmentation, cohort retention, and BG/NBD + Gamma-Gamma customer lifetime value prediction.
 
-| Script | Purpose |
-|--------|---------|
-| `01_data_cleaning.R` | Clean raw data — remove nulls, cancellations, non-UK; export RDS + CSV |
-| `02_eda.R` | Exploratory analysis — revenue distribution, seasonality, Pareto concentration |
-| `03_rfm_segmentation.R` | RFM scoring (1–5), segment assignment, treemap and heatmap |
-| `04_cohort_retention.R` | Monthly cohort retention matrix + heatmap |
-| `05_clv_prediction.R` | BG/NBD transaction model + Gamma-Gamma spend model; 12-month CLV |
-| `06_export_for_tableau.R` | Build Tableau-ready flat files in `outputs/tableau/` |
-| `07_load_to_sqlite.R` | Load all exports into `data/processed/crm.db` for Streamlit |
+Delivered in two dashboards with intentionally different purposes:
+- **Tableau** — executive-facing broadcast dashboard for known questions and a known audience
+- **Streamlit** — self-serve operational tool that lets stakeholders explore questions the analyst didn't anticipate, including per-customer lookup and segment-specific CRM recommendations
 
-## Key findings
+The self-serve design addresses a real industry pain point: analysts spending recurring time on one-off "can you check customer X?" or "what should we do about At Risk?" requests. Both of those are now answered by the tool itself.
 
-- **5,350 UK registered customers** across 725K transactions
-- **RFM:** At Risk is the largest segment (1,071 customers, 20%); Champions + Loyal + Potential Loyalists form a 43% high-value core
-- **Cohort retention:** 79% M0→M1 cliff; customers who return at M1 stabilise at ~19% through M6; Dec cohorts have 8% M1 retention (Christmas acquisition quality problem)
-- **CLV model:** MAE lift 39.4% over naive baseline; correlation 0.832; top decile captures 58% of holdout revenue (5.8× lift)
-- **£6.32M** predicted 12-month CLV from existing base; Champions (12% of customers) account for 51%
+---
+
+## Key Findings
+
+- **5,350 UK customers** across 725K transactions (Dec 2009–Dec 2011)
+- **77% M0→M1 cliff** — the majority of first-time buyers never return; the critical intervention window is within 30 days
+- **Champions (12% of customers)** account for **51% of predicted 12-month revenue** — protecting this segment is the single highest-ROI action
+- **Can't Lose Them** segment: avg CLV comparable to Loyal Customers (£1,038) but P(alive) has dropped to 71.8% — most urgent win-back priority
+- **CLV model:** MAE 39.4% better than naive baseline; top decile captures 58% of holdout revenue (5.8× lift)
+- **£6.32M** predicted 12-month CLV from the existing base; Dec cohorts show lowest M1 retention (8%), confirming peak-season acquired customers are predominantly one-time buyers
+
+---
 
 ## Dashboards
 
-### Tableau (manual, executive-facing)
-Built manually in Tableau Desktop. Core views: KPI summary, segment distribution, cohort retention heatmap, CLV by segment.
+### Streamlit — Self-Serve Operational Tool
 
-### Streamlit (AI-assisted, operational)
 ```bash
-# From project root
-Rscript scripts/07_load_to_sqlite.R   # build the DB (run once)
+Rscript scripts/07_load_to_sqlite.R   # build SQLite DB (run once after R pipeline)
 pip install -r app/requirements.txt
 streamlit run app/streamlit_app.py
 ```
 
-Three pages:
-- **Customer Lookup** — individual profile with RFM scores, CLV, purchase history chart, and segment-specific CRM recommendation
-- **Segment Explorer** — KPI cards, segment comparison charts, revenue treemap, recommended action
-- **Cohort Retention** — interactive heatmap with worst-drop highlights and key insight summary
+**Page 1 — Customer Lookup**
 
-The Streamlit app goes further than Tableau with a Customer Lookup tool and direct SQL queries against the SQLite DB.
+Look up any of the 5,350 customers by ID. Returns RFM scores, predicted 12-month CLV, CLV percentile rank, P(alive), purchase history chart, and a segment-specific CRM action recommendation. Hover on the segment badge or RFM bars for inline definitions.
 
-## Development efficiency
+![Customer Lookup](dashboard/screenshots/01_customer_lookup.png)
+![Segment Definitions](dashboard/screenshots/02_segment_definitions.png)
 
-Both dashboards visualise the same underlying data (5,350 UK customers, RFM segments, 24-month cohort matrix, BG/NBD + Gamma-Gamma CLV predictions). Core views — KPI summary, segment distribution, cohort retention heatmap, CLV by segment — are present in both.
+**Page 2 — Segment Explorer**
 
-| | Tableau (Manual) | Streamlit (AI-Assisted) |
+Select any of the 9 RFM segments to see deep-dive KPIs (recency, frequency, AOV, CLV) and a tailored CRM recommendation. Scroll for cross-segment comparisons: customer count, avg predicted CLV, and revenue share treemap (coloured by CLV, sized by customer count).
+
+![Segment Explorer — KPIs and charts](dashboard/screenshots/03_segment_explorer.png)
+![Segment Explorer — Treemap and recommendation](dashboard/screenshots/04_segment_explorer_deepdive.png)
+
+**Page 3 — Cohort Retention**
+
+Monthly cohort retention heatmap across 25 cohorts. Filterable by segment. Highlights the five worst M0→M1 drops and surfaces the Q4 seasonal retention bias and acquisition quality problem.
+
+![Cohort Retention Heatmap](dashboard/screenshots/05_cohort_retention_heatmap.png)
+
+---
+
+### Tableau — Executive Dashboard
+
+Single-page dashboard built in Tableau Desktop. Core views: KPI summary, segment distribution, cohort retention heatmap, CLV by segment. Segments are clickable — selecting a segment cross-filters the heatmap and CLV chart.
+
+![Tableau Dashboard](dashboard/screenshots/06_tableau_dashboard.png)
+
+---
+
+## Analytics Pipeline
+
+| Script | Purpose |
+|--------|---------|
+| `01_data_cleaning.R` | Remove nulls, cancellations, non-UK rows; export cleaned RDS + CSV |
+| `02_eda.R` | Revenue distribution, seasonality, Pareto concentration — saved plots |
+| `03_rfm_segmentation.R` | RFM scoring (quintiles 1–5), 9-segment assignment, treemap and heatmap |
+| `04_cohort_retention.R` | Monthly cohort retention matrix + heatmap; segment-level densification |
+| `05_clv_prediction.R` | BG/NBD transaction model + Gamma-Gamma spend model; 12-month CLV |
+| `06_export_for_tableau.R` | Flat files for Tableau: customer master, transactions, cohort, segment summary |
+| `07_load_to_sqlite.R` | Load all exports into `data/processed/crm.db` for Streamlit SQL queries |
+
+---
+
+## AI-Assisted Development
+
+### Dashboard scope comparison
+
+| | Tableau | Streamlit |
 |---|---|---|
-| Build time | ___ hrs | ___ hrs |
-| Method | Manual drag-and-drop | Vibe coding with Claude Code |
-| Strength | Cross-filter interactivity | Operational lookup + SQL flexibility |
+| **Build time** | 1.5 hrs | 2.5 hrs |
+| **Pages** | 1 | 3 |
+| **Components** | 4 KPIs · treemap · 2 bar charts · heatmap | Customer lookup · segment deep-dive · cohort heatmap · CSS design system · SQLite SQL layer · hover tooltips |
+| **Interaction** | Cross-filter (segment → heatmap) | Per-customer SQL queries · dropdown filters · hover definitions · segment recommendations |
+| **Method** | Manual drag-and-drop | Vibe coding with Claude Code |
 
-### Phase breakdown
-
-| Phase | Description | Est. traditional time | Actual time | Speedup |
-|-------|-------------|----------------------|-------------|---------|
-| 01–02 | Cleaning + EDA | | | |
-| 03 | RFM segmentation | | | |
-| 04 | Cohort retention | | | |
-| 05 | CLV prediction | | | |
-| 06–07 | Exports + SQLite | | | |
-| App | Streamlit build | | | |
-| Tableau | Dashboard build | | | |
-| README | Documentation | | | |
+Streamlit took more total hours but delivered 3× the scope and a qualitatively different capability — self-serve lookup that Tableau cannot replicate without a server-side data connection and custom extensions.
 
 ### Where AI helped most
 - R syntax and tidyverse boilerplate (R is not my primary language)
-- CLV model diagnostics iteration — quickly surfacing the P(alive)=1.0 edge case, M3>M1 seasonal artifact, and naive baseline comparison
-- Streamlit frontend scaffolding — layout, CSS, Plotly theming
-- Business framing of findings — translating model outputs into actionable CRM language
+- CLV model diagnostics — surfacing the P(alive)=1.0 edge case, M3>M1 seasonal artifact, and naive baseline comparison
+- Streamlit frontend — layout, CSS theming, Plotly configuration, SQLite integration
+- Business framing — translating model outputs into segment-specific CRM recommendations
 
 ### Where I drove the work
-- Analysis architecture and script sequencing decisions
-- Business interpretation — what the cohort cliff means for campaign timing, what Can't Lose Them vs At Risk prioritisation implies
-- Data quality decisions — what to filter, what to keep (Manual entries, guest checkouts)
-- Dashboard design — what views belong in Tableau vs Streamlit, what a stakeholder actually needs to see
+- Analysis architecture and script sequencing
+- Business interpretation — what the cohort cliff means for campaign timing, Can't Lose Them vs At Risk prioritisation, CLV decile targeting strategy
+- Data quality decisions — what to filter, what to keep
+- Dashboard design — what belongs in Tableau vs Streamlit, what a stakeholder actually needs to see
+- All findings, recommendations, and so-what statements
