@@ -261,6 +261,42 @@ _CSS = f"""
     color: white !important;
   }}
 
+  /* ── Expander — styled as a clickable bar ── */
+  [data-testid="stExpander"] {{
+    border: 1px solid {COLORS["border"]} !important;
+    border-radius: 8px !important;
+    background: {COLORS["surface"]} !important;
+    margin-bottom: 20px !important;
+    overflow: hidden !important;
+  }}
+  [data-testid="stExpander"] summary {{
+    padding: 14px 20px !important;
+    background: {COLORS["surface"]} !important;
+    cursor: pointer !important;
+    list-style: none !important;
+    display: flex !important;
+    align-items: center !important;
+  }}
+  [data-testid="stExpander"] summary:hover {{
+    background: {COLORS["surface_2"]} !important;
+    border-color: {COLORS["primary"]} !important;
+  }}
+  [data-testid="stExpander"] summary p,
+  [data-testid="stExpander"] summary span {{
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04em !important;
+    color: {COLORS["text"]} !important;
+  }}
+  [data-testid="stExpander"] summary svg {{
+    color: {COLORS["primary"]} !important;
+    fill: {COLORS["primary"]} !important;
+  }}
+  [data-testid="stExpander"] > div:last-child {{
+    padding: 0 20px 16px !important;
+    background: {COLORS["surface"]} !important;
+  }}
+
   hr {{ border-color: {COLORS["border"]}; margin: 24px 0; }}
   #MainMenu, footer, header {{ visibility: hidden; }}
   .block-container {{ padding-top: 2rem; }}
