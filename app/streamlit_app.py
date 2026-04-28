@@ -269,6 +269,9 @@ _CSS = f"""
     margin-bottom: 20px !important;
     overflow: hidden !important;
   }}
+  [data-testid="stExpander"]:has(details[open]) {{
+    border-color: {COLORS["primary"]} !important;
+  }}
   [data-testid="stExpander"] summary {{
     padding: 14px 20px !important;
     background: {COLORS["surface"]} !important;
@@ -276,10 +279,12 @@ _CSS = f"""
     list-style: none !important;
     display: flex !important;
     align-items: center !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+    outline: none !important;
   }}
   [data-testid="stExpander"] summary:hover {{
     background: {COLORS["surface_2"]} !important;
-    border-color: {COLORS["primary"]} !important;
   }}
   [data-testid="stExpander"] summary p,
   [data-testid="stExpander"] summary span {{
@@ -293,8 +298,9 @@ _CSS = f"""
     fill: {COLORS["primary"]} !important;
   }}
   [data-testid="stExpander"] > div:last-child {{
-    padding: 0 20px 16px !important;
+    padding: 4px 20px 16px !important;
     background: {COLORS["surface"]} !important;
+    border-top: 1px solid {COLORS["border"]} !important;
   }}
 
   hr {{ border-color: {COLORS["border"]}; margin: 24px 0; }}
