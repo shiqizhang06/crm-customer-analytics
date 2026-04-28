@@ -305,6 +305,34 @@ _CSS = f"""
     background: {COLORS["bg"]} !important;
   }}
 
+  /* ── CSS tooltips ── */
+  .has-tooltip {{ position: relative; cursor: help; }}
+  .has-tooltip::after {{
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    background: {COLORS["surface_2"]};
+    color: {COLORS["text"]};
+    border: 1px solid {COLORS["border"]};
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: pre-line;
+    min-width: 200px;
+    max-width: 280px;
+    line-height: 1.6;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }}
+  .has-tooltip:hover::after {{ opacity: 1; }}
+
   hr {{ border-color: {COLORS["border"]}; margin: 24px 0; }}
   #MainMenu, footer, header {{ visibility: hidden; }}
   .block-container {{ padding-top: 2rem; }}
@@ -399,7 +427,7 @@ def segment_definitions_html():
         f'<strong style="color:{COLORS["text"]}">M</strong> = avg spend per order'
         f'</div>'
     )
-    tiers_html = '<div style="padding:14px 20px 20px;display:flex;flex-direction:column;gap:20px">'
+    tiers_html = '<div style="padding:14px 20px 32px;display:flex;flex-direction:column;gap:20px">'
     for tier in SEGMENT_TIERS:
         n   = len(tier["segments"])
         col = "repeat(3,1fr)" if n == 3 else "repeat(2,1fr)"
@@ -497,9 +525,16 @@ def kpi_card(label, value, sub=None, accent=False):
             f'<div class="kpi-value">{value}</div>'
             f'{sub_html}</div>')
 
+_RFM_TIPS = {
+    "R": "Recency\nDays since last purchase\nScore 5 = bought most recently · Score 1 = oldest",
+    "F": "Frequency\nNumber of unique orders placed\nScore 5 = most orders · Score 1 = fewest",
+    "M": "Monetary\nAverage spend per order\nScore 5 = highest AOV · Score 1 = lowest",
+}
+
 def rfm_bar(label, score):
     pct = score / 5 * 100
-    return (f'<div class="rfm-row">'
+    tip = _RFM_TIPS.get(label, label)
+    return (f'<div class="rfm-row has-tooltip" data-tooltip="{tip}">'
             f'<div class="rfm-label">{label}</div>'
             f'<div class="rfm-track"><div class="rfm-fill" style="width:{pct}%"></div></div>'
             f'<div class="rfm-score">{score}</div></div>')
@@ -581,8 +616,10 @@ if page == "Customer Lookup":
                     f'<div style="font-size:30px;font-weight:700;color:{COLORS["text"]}">{int(c["customer_id"])}</div>',
                     unsafe_allow_html=True)
     with col_seg:
+        _sd = SEGMENT_DEFINITIONS[segment]
+        _tip = f"{_sd['scores']}\n{_sd['desc']}"
         st.markdown(f'<div style="font-size:13px;color:{COLORS["text_muted"]};margin-bottom:6px">Segment</div>'
-                    f'<div class="seg-badge">{segment}</div>',
+                    f'<div class="seg-badge has-tooltip" data-tooltip="{_tip}">{segment}</div>',
                     unsafe_allow_html=True)
 
     st.markdown("<hr>", unsafe_allow_html=True)
