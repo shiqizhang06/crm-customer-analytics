@@ -1,5 +1,5 @@
 # CRM Customer Analytics
-Customer Lifecycle & Value Analytics — RFM Segmentation · Cohort Retention · CLV Prediction
+Customer Lifecycle & Value Analytics — RFM Segmentation · Cohort Retention · CLV Prediction · Dashboard
 
 ---
 
