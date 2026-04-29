@@ -113,3 +113,33 @@ The Streamlit app UI was designed using the [interface-design](https://github.co
 | **Self-serve capability** | Limited — fixed views only | Full — stakeholders answer their own questions |
 
 Streamlit took 1 extra hour but delivered 3× the scope and a qualitatively different capability — a self-serve tool vs a fixed broadcast dashboard. The AI advantage here isn't raw speed; it's raising the ceiling of what's feasible in a sitting, particularly on the frontend (CSS theming, Plotly configuration, interactive tooltips) where iteration cost without AI would be prohibitive.
+
+---
+
+## UX Scenarios
+This Streamlit tool was designed to complement, not replicate, the executive Tableau dashboard. Where Tableau excels at high-level KPI monitoring with predefined filters, it falls short when stakeholders need to investigate specific customers or interrogate model outputs on demand. Traditionally, those questions get routed back to the data team, producing one-off static reports that are slow to deliver and impossible to reuse. This self-serve tool was built to close that gap — a user-friendly interface to the underlying customer data and CLV model, designed around two recurring stakeholder workflows.
+
+### Scenario 1: Marketing Manager Investigates a High-Value Customer
+**User:** Marketing Manager preparing a win-back campaign for lapsed VIP customers.
+
+**Context:** She has a shortlist of customer IDs flagged by the CRM team and wants to understand each one's purchase history and predicted CLV before deciding who to prioritize for a personalized outreach. Previously, this required emailing the data team and waiting a day or two for a static export.
+
+**Workflow:** She opens the Customer Lookup page, enters a customer ID, and immediately sees that customer's RFM scores, transaction history, assigned segment, and predicted CLV — alongside contextual tooltips explaining what each metric means. She repeats the lookup for several IDs in the same session, copying the relevant numbers into her campaign brief without ever needing analyst support.
+
+**Why this matters:** Tableau's filter-based interaction model can't support direct ID-based querying at this granularity. The self-serve lookup turns what was a multi-day request cycle into a 30-second self-service action, and the same interface can be reused indefinitely for any future lookup.
+
+### Scenario 2: CRM Lead Validates Model Output Before Acting on a Segment
+**User:** CRM Lead deciding whether to invest budget in retention efforts for a specific customer segment.
+
+**Context:** The CLV model has flagged "At-Risk High-Value" as a segment worth retaining, but she's hesitant to commit budget based on a model output she can't see inside. She wants to understand why the model made that prediction and whether the segment's behavioral profile actually supports the recommendation.
+
+**Workflow:** She opens the Segment Explorer page, selects "At-Risk High-Value," and sees the segment's aggregate purchase frequency, monetary distribution, recency profile, and predicted CLV side by side. The interface lets her compare this segment against others, surfacing the behavioral patterns that drive the CLV prediction. She leaves with both a number to defend and an intuitive understanding of what that number means.
+
+**Why this matters:** Predictive models lose stakeholder trust when they feel like black boxes. By exposing the underlying behavioral signals alongside the prediction, the tool makes the model interpretable in the stakeholder's own language — purchase frequency, recency, spend — rather than asking them to trust an opaque score. This shifts the conversation from "do I believe the model?" to "what should we do about this segment?"
+
+## Design Philosophy
+These scenarios drove three core design decisions:
+
+1. **Problem-driven, not feature-driven:** every page exists to resolve a specific stakeholder bottleneck, not to showcase technical capability.
+2. **Differentiated from Tableau by intent:** Tableau handles broad monitoring; this tool handles targeted investigation and model interpretability — two things filter-based BI can't do well.
+3. **Reduce model opacity:** surfacing the behavioral signals behind CLV predictions builds trust and makes the model actionable for non-technical decision-makers.
